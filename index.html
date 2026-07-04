@@ -35,7 +35,8 @@ h2{font-size:1.15rem;font-weight:700}
 .topbar{position:sticky;top:0;z-index:20;background:linear-gradient(var(--bg) 85%,transparent);
   padding:14px 0 10px;display:flex;align-items:center;gap:10px}
 .topbar .back{background:var(--surface);border:1px solid var(--line);color:var(--text);
-  width:42px;height:42px;border-radius:10px;font-size:1.2rem;flex:none;display:flex;align-items:center;justify-content:center}
+  height:42px;padding:0 14px 0 10px;border-radius:10px;font-size:.95rem;font-weight:700;flex:none;
+  display:flex;align-items:center;justify-content:center;gap:4px}
 .topbar .ttl{flex:1;min-width:0}
 .topbar .ttl h1{font-size:1.15rem;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .topbar .ttl .sub{font-size:.78rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -247,10 +248,10 @@ window.addEventListener('hashchange',render);
 function render(){const h=location.hash.slice(1)||'home';const[r,a,b]=h.split('/');
  const app=document.getElementById('app');
  const R={home:vHome,new:vNew,session:()=>vSession(a),wh:()=>vWh(a,b),dmg:()=>vDmg(a,b),
-  close:()=>vClose(a),report:()=>vReport(a),archive:vArchive,settings:vSettings};
+  close:()=>vClose(a),report:()=>vReport(a),order:()=>vOrder(a),archive:vArchive,settings:vSettings};
  (R[r]||vHome)();window.scrollTo(0,0)}
 function hdr(title,sub,backHash){return `<div class="topbar">
- ${backHash!==undefined?`<button class="back" onclick="go('${backHash}')">‹</button>`:''}
+ ${backHash!==undefined?`<button class="back" onclick="go('${backHash}')">‹ Vissza</button>`:''}
  <div class="ttl"><h1>${title}</h1>${sub?`<div class="sub">${sub}</div>`:''}</div></div>`}
 
 /* ============ KEZDŐKÉPERNYŐ ============ */
@@ -297,14 +298,15 @@ function vNew(){W={customerId:'',name:'',address:'',contact:'',email:'',phone:''
  <button class="btn small" onclick="addInspector()">＋ Új vizsgáló hozzáadása</button>
  <div class="bottombar"><div class="inner">
   <button class="btn primary" onclick="wCreate()">Vizsgálat indítása ›</button></div></div>`;}
-function inspChips(){return S.inspectors.filter(i=>i.active!==false).map(i=>
- `<button class="chip ${W.inspectorIds.includes(i.id)?'on':''}" onclick="wTogIns('${i.id}')">${esc(i.name)}</button>`).join('')||'<span class="mut small">Még nincs vizsgáló felvéve — adj hozzá egyet.</span>'}
+function inspChips(){const sel=(W&&Array.isArray(W.inspectorIds))?W.inspectorIds:[];
+ return S.inspectors.filter(i=>i.active!==false).map(i=>
+ `<button class="chip ${sel.includes(i.id)?'on':''}" onclick="wTogIns('${i.id}')">${esc(i.name)}</button>`).join('')||'<span class="mut small">Még nincs vizsgáló felvéve — adj hozzá egyet.</span>'}
 function wTogIns(id){const i=W.inspectorIds.indexOf(id);
  if(i<0)W.inspectorIds.push(id);else W.inspectorIds.splice(i,1);
  document.getElementById('w_insp').innerHTML=inspChips()}
 function addInspector(){const n=prompt('Vizsgáló neve:');if(!n)return;
  const o={id:uid(),name:n.trim(),active:true,updatedAt:now()};S.inspectors.push(o);
- W.inspectorIds.push(o.id);markDirty();
+ if(W&&Array.isArray(W.inspectorIds))W.inspectorIds.push(o.id);markDirty();
  const el=document.getElementById('w_insp');if(el)el.innerHTML=inspChips();
  const el2=document.getElementById('set_insp');if(el2)vSettings()}
 function wPickCust(id){W.customerId=id;const c=cust(id);
@@ -356,7 +358,7 @@ function vSession(id){const s=sess(id);if(!s){go('home');return}
  <div class="bottombar"><div class="inner">
  ${locked?`<button class="btn primary" onclick="go('report/${s.id}')">Jegyzőkönyv megnyitása ›</button>`
   :`<button class="btn" onclick="go('home')">Mentés, kilépés</button>
-    <button class="btn primary" onclick="go('close/${s.id}')">Lezárás ›</button>`}</div></div>`;}
+    <button class="btn primary" onclick="go('close/${s.id}')">Jegyzőkönyv lezárása ›</button>`}</div></div>`;}
 function addWh(sid){const n=prompt('Raktár megnevezése:');if(!n)return;addWhNamed(sid,n.trim())}
 function addWhNamed(sid,name){const s=sess(sid);const c=cust(s.customerId);
  let cw=c.warehouses.find(w=>w.name===name);
@@ -376,7 +378,8 @@ function vWh(sid,wid){const s=sess(sid);if(!s){go('home');return}
   <span><b>Rendben!</b> — a raktárban nem találtunk sérülést</span></label></div>`:''}
  ${ds.map(d=>dmgCard(s,d)).join('')}
  ${locked?'':`<div class="bottombar"><div class="inner">
-  <button class="btn primary" onclick="newDmg('${sid}','${wid}')">＋ Új sérülés rögzítése</button></div></div>`}`;}
+  <button class="btn" style="flex:0 0 auto;width:auto" onclick="go('session/${sid}')">‹ Áttekintés</button>
+  <button class="btn primary" onclick="newDmg('${sid}','${wid}')">＋ Új sérülés</button></div></div>`}`;}
 function togWhOk(sid,wid,v){const s=sess(sid);s.whOk[wid]=v;s.updatedAt=now();markDirty()}
 function dmgCard(s,d){const parts=MATRIX.filter(m=>d.matrix[m.k]).map(m=>m.label).join(' · ');
  return `<div class="card tappable" onclick="go('dmg/${s.id}/${d.id}')">
@@ -459,8 +462,11 @@ function dGet(sid,did){return sess(sid).damages.find(x=>x.id===did)}
 function dSet(sid,did,k,v){const d=dGet(sid,did);d[k]=v;d.updatedAt=now();sess(sid).updatedAt=now();markDirty()}
 function dNote(sid,did,t){const d=dGet(sid,did);d.note=d.note?(d.note+' '+t):t;d.updatedAt=now();
  document.getElementById('d_note').value=d.note;markDirty()}
-function dMtx(sid,did,k){const d=dGet(sid,did);d.matrix[k]=!d.matrix[k];d.updatedAt=now();markDirty();
- document.getElementById('d_mtx').innerHTML=mtxBtns(sid,did,d)}
+const CSERE_KEYS=['talplemez','keretCsere','gerElsoCsere','gerHatsoCsere','tulCsere'];
+function dMtx(sid,did,k){const d=dGet(sid,did);d.matrix[k]=!d.matrix[k];d.updatedAt=now();
+ if(d.matrix[k]&&CSERE_KEYS.includes(k)&&d.klass!=='piros'){d.klass='sarga';
+  const kb=document.getElementById('d_klass');if(kb)kb.innerHTML=klassBtns(sid,did,d)}
+ markDirty();document.getElementById('d_mtx').innerHTML=mtxBtns(sid,did,d)}
 function dKlass(sid,did,k){const d=dGet(sid,did);d.klass=k;d.updatedAt=now();markDirty();
  document.getElementById('d_klass').innerHTML=klassBtns(sid,did,d)}
 function dManu(sid,did,mid){const d=dGet(sid,did);d.manufacturerId=mid;d.updatedAt=now();
@@ -595,6 +601,8 @@ function vReport(sid){const s=sess(sid);if(!s){go('home');return}
  <button class="btn primary" onclick="makePdf('${sid}')">📄 PDF jegyzőkönyv (nyomtatás / mentés)</button>
  <button class="btn" onclick="makeXlsx('${sid}',false)">📊 Excel — ügyfélnek</button>
  <button class="btn" onclick="makeXlsx('${sid}',true)">📊 Excel — belső (cikkszám, méret, mennyiség)</button>
+ <button class="btn" onclick="makeWord('${sid}')">📝 Word — fedlap letöltése</button>
+ <button class="btn" onclick="go('order/${sid}')">🧾 Rendelési összesítő (mit kell rendelni)</button>
  <button class="btn" onclick="emailClient('${sid}')">✉️ E-mail az ügyfélnek</button>
  <hr class="hr">
  <button class="btn" onclick="go('session/${sid}')">Bejegyzések megtekintése</button>
@@ -651,6 +659,14 @@ function makeXlsx(sid,internal){const s=sess(sid);const c=cust(s.customerId);
  const ws=XLSX.utils.aoa_to_sheet(rows);
  ws['!cols']=head.map((h,i)=>({wch:i===0?22:(i>=head.length-(internal?4:1)?34:i<4?9:5)}));
  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Hibajegyzék');
+ if(internal){const ord=orderSummary(s);
+  const oRows=[['Rendelési összesítő — '+c.name+' — '+fmtD(s.date)],[],
+   ['Elem','Gyártó','Méret (mm)','Cikkszám / megjegyzés','Mennyiség (db)','Helyek']];
+  for(const r of ord)oRows.push([r.elem,r.gyarto,r.meret,r.cikk,r.db,r.helyek.join(', ')]);
+  oRows.push([],['Összesen','','','',ord.reduce((a,r)=>a+r.db,0),'']);
+  const ws2=XLSX.utils.aoa_to_sheet(oRows);
+  ws2['!cols']=[{wch:24},{wch:12},{wch:16},{wch:36},{wch:12},{wch:40}];
+  XLSX.utils.book_append_sheet(wb,ws2,'Rendelés')}
  const fname=`Felulvizsgalat_${s.date}_${c.name.replace(/[^\wÁÉÍÓÖŐÚÜŰáéíóöőúüű ]/g,'').replace(/ /g,'_')}${internal?'_BELSO':''}.xlsx`;
  const out=XLSX.write(wb,{bookType:'xlsx',type:'array'});
  shareOrDownload(new Blob([out],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}),fname)}
@@ -720,6 +736,67 @@ async function makePdf(sid){const s=sess(sid);const c=cust(s.customerId);const s
   <p style="font-size:8pt">Megrendelő: ${esc(c.name)} · Dátum: ${fmtD(s.date)} · Telephely: ${esc(c.address||'')}</p>${mx}</div>
  ${photosHtml?`<div class="pg">${ph}<h2>Fotómelléklet</h2>${photosHtml}</div>`:''}`;
  setTimeout(()=>window.print(),150)}
+
+/* ============ RENDELÉSI ÖSSZESÍTŐ ============ */
+const ORDER_MAP={talplemez:'Talplemez / Talpcsavar',labElso:'Állványláb',labHatso:'Állványláb',
+ protektor:'Protektor (lábvédő)',keretCsere:'Keretösszekötő',gerElsoCsere:'Tartógerenda',
+ gerHatsoCsere:'Tartógerenda',terheles:'Terhelésjelző tábla',biztszeg:'Biztosítószeg',
+ tulCsere:'Túltolásgátló',egyeb:'Egyéb'};
+/* a "Javítás" tételek (gerElsoJav, gerHatsoJav, tulJav) nem rendelendők, azok helyszíni javítások */
+function orderSummary(s){const map=new Map();
+ for(const d of s.damages){for(const k in ORDER_MAP){if(!d.matrix[k])continue;
+  const size=[d.sizeH,d.sizeW,d.sizeM].filter(Boolean).join(' × ');
+  const key=[ORDER_MAP[k],manuName(d.manufacturerId),size,d.internalNote||''].join('|');
+  const cur=map.get(key)||{elem:ORDER_MAP[k],gyarto:manuName(d.manufacturerId),
+   meret:size,cikk:d.internalNote||'',db:0,helyek:[]};
+  cur.db+=Number(d.qty)||1;
+  const w=s.warehouses.find(x=>x.id===d.warehouseId);
+  cur.helyek.push((w?w.name+': ':'')+d.locationCode);
+  map.set(key,cur)}}
+ return[...map.values()].sort((a,b)=>a.elem.localeCompare(b.elem,'hu'))}
+function vOrder(sid){const s=sess(sid);if(!s){go('home');return}
+ const rows=orderSummary(s);const total=rows.reduce((a,r)=>a+r.db,0);
+ const app=document.getElementById('app');
+ app.innerHTML=hdr('Rendelési összesítő',esc(cust(s.customerId).name)+' · '+fmtD(s.date),'report/'+sid)+
+ (rows.length?rows.map(r=>`<div class="card">
+   <h2 style="margin:0">${esc(r.elem)} <span class="badge grey">${r.db} db</span></h2>
+   <div class="mut small">${esc(r.gyarto||'gyártó nincs megadva')}${r.meret?' · '+esc(r.meret)+' mm':''}</div>
+   ${r.cikk?`<div class="small">${esc(r.cikk)}</div>`:''}
+   <div class="mut small">Helyek: ${esc(r.helyek.join(', '))}</div></div>`).join('')+
+  `<div class="card"><b>Összesen: ${total} db alkatrész, ${rows.length} féle tétel</b>
+   <div class="mut small">Ez a lista a belső Excel „Rendelés” munkalapján is szerepel. A javításos tételek (Javítás oszlopok) nem rendelendők, ezért itt nem jelennek meg.</div></div>`
+ :'<div class="mut center" style="margin-top:40px">Nincs rendelendő tétel.</div>')}
+
+/* ============ WORD (fedlap) EXPORT ============ */
+function makeWord(sid){const s=sess(sid);const c=cust(s.customerId);const T=S.settings.templates;
+ const insp=S.inspectors.filter(i=>s.inspectorIds.includes(i.id)).map(i=>i.name).join(', ');
+ const body=`<h1 style="text-align:center">VIZSGÁLATI JEGYZŐKÖNYV</h1>
+ <p style="text-align:center"><b>a ${esc(c.name)}</b> raktárában felállított<br>
+ <b>raktári állványrendszerek</b><br>időszakos biztonsági felülvizsgálata az MSZ EN 15635 szabvány szerint.</p>
+ <p>A vizsgálatokat a <b>${esc(S.settings.company)}</b> végezte.<br>${esc(S.settings.companyLine||'')}</p>
+ <p><b>Résztvevők:</b><br>${esc(S.settings.company)}, mint kivitelező részéről: ${esc(insp)}<br>
+ ${esc(c.name)}, mint megbízó részéről: ${esc(s.signatures.clientName||s.contactName||c.contact||'')}</p>
+ <p><b>Felülvizsgálat helyszíne:</b> ${esc(c.address||'')}</p>
+ <p><b>A felülvizsgálat ideje:</b> ${fmtD(s.date)} · Jegyzőkönyv azonosító: ${esc(s.code)}</p>
+ <h2>A vizsgálat előzményei, módszertana</h2>
+ <p>${esc(T.modszertan).replace(/\n/g,'<br>')}</p>
+ <p style="color:#1D7A34"><b>${esc(T.zold)}</b></p>
+ <p style="color:#B8860B"><b>${esc(T.sarga)}</b></p>
+ <p style="color:#CC0000"><b>${esc(T.piros)}</b></p>
+ <p><b>${esc(T.figyelmeztetes)}</b></p><p>${esc(T.zaro)}</p>
+ <h2 style="text-align:center;color:${s.result==='MEGFELELT'?'#1D7A34':'#CC0000'}">Az állványrendszerek állapota: ${esc(s.result||'')}!</h2>
+ <p style="text-align:center">az MSZ EN 15635 szabványban előírt követelményeknek${s.result==='MEGFELELT'?'':', a mellékelt hibajegyzékben feltüntetett tárhelyeken'}.</p>
+ <p style="text-align:center"><b>Következő állványrendszer felülvizsgálat legkésőbb: ${s.nextDate?fmtD(s.nextDate):''}</b></p>
+ <p style="text-align:center">Kelt: ${fmtD(s.closedAt||s.date)}</p>
+ <table style="width:100%;margin-top:40px;text-align:center"><tr>
+  <td style="border-top:1px solid #000">Vizsgálatot végző<br>${esc(insp)}</td>
+  <td style="width:10%"></td>
+  <td style="border-top:1px solid #000">Megbízó képviselője<br>${esc(s.signatures.clientName||'')}</td></tr></table>`;
+ const doc=`<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word">
+ <head><meta charset="utf-8"><title>Jegyzőkönyv fedlap</title></head>
+ <body style="font-family:Arial;font-size:11pt">${body}</body></html>`;
+ const fname='Jegyzokonyv_fedlap_'+c.name.replace(/[^\wÁÉÍÓÖŐÚÜŰáéíóöőúüű ]/g,'').replace(/ /g,'_')+'.doc';
+ shareOrDownload(new Blob(['\ufeff'+doc],{type:'application/msword'}),fname)}
 
 /* ============ ARCHÍVUM ============ */
 function vArchive(){const app=document.getElementById('app');
