@@ -1,0 +1,873 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0F1216">
+<title>Raktárszerviz — Állványfelülvizsgálat</title>
+<link rel="manifest" href="manifest.json">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+<style>
+:root{
+  --bg:#0F1216; --surface:#171C22; --surface2:#1F252D; --line:#2B333D;
+  --text:#E9EDF1; --muted:#93A0AC; --brand:#FFB020; --brand-ink:#1A1200;
+  --green:#2FBF71; --yellow:#F7C948; --red:#E5484D; --blue:#4C9FE8;
+  --radius:12px; --pad:16px;
+}
+*{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  font-size:16px; line-height:1.45; min-height:100%;}
+#app{max-width:720px;margin:0 auto;padding:0 var(--pad) 120px;min-height:100vh}
+h1,h2,h3{margin:.4em 0 .3em;line-height:1.2}
+h1{font-size:1.5rem;font-weight:800}
+h2{font-size:1.15rem;font-weight:700}
+.eyebrow{font-size:.72rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+.topbar{position:sticky;top:0;z-index:20;background:linear-gradient(var(--bg) 85%,transparent);
+  padding:14px 0 10px;display:flex;align-items:center;gap:10px}
+.topbar .back{background:var(--surface);border:1px solid var(--line);color:var(--text);
+  width:42px;height:42px;border-radius:10px;font-size:1.2rem;flex:none;display:flex;align-items:center;justify-content:center}
+.topbar .ttl{flex:1;min-width:0}
+.topbar .ttl h1{font-size:1.15rem;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.topbar .ttl .sub{font-size:.78rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.wordmark{font-weight:900;letter-spacing:.06em;font-size:1.35rem}
+.wordmark b{color:var(--brand)}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
+  padding:14px;margin:10px 0;position:relative}
+.card.tappable:active{background:var(--surface2)}
+button{font:inherit;border:none;cursor:pointer;border-radius:10px}
+.btn{display:flex;width:100%;align-items:center;justify-content:center;gap:8px;
+  padding:14px;font-weight:700;font-size:1rem;background:var(--surface2);
+  color:var(--text);border:1px solid var(--line);margin:8px 0;min-height:52px}
+.btn.primary{background:var(--brand);color:var(--brand-ink);border-color:var(--brand)}
+.btn.danger{background:transparent;color:var(--red);border-color:var(--red)}
+.btn.ghost{background:transparent}
+.btn.small{padding:8px 12px;min-height:38px;font-size:.85rem;width:auto;display:inline-flex;margin:4px 4px 4px 0}
+.btn:disabled{opacity:.4}
+label.fld{display:block;margin:12px 0 4px;font-size:.8rem;font-weight:700;color:var(--muted);
+  text-transform:uppercase;letter-spacing:.08em}
+input[type=text],input[type=number],input[type=date],input[type=email],select,textarea{
+  width:100%;padding:12px;font:inherit;background:var(--surface2);color:var(--text);
+  border:1px solid var(--line);border-radius:10px;min-height:48px}
+textarea{min-height:70px;resize:vertical}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--brand);outline-offset:0;border-color:var(--brand)}
+.row{display:flex;gap:10px}
+.row>*{flex:1;min-width:0}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}
+.chip{padding:8px 14px;border-radius:20px;background:var(--surface2);border:1px solid var(--line);
+  color:var(--text);font-size:.88rem;font-weight:600}
+.chip.on{background:var(--brand);color:var(--brand-ink);border-color:var(--brand)}
+.chip.count{background:transparent;color:var(--muted);border-style:dashed}
+.stripe{position:absolute;left:0;top:0;bottom:0;width:6px;border-radius:12px 0 0 12px}
+.stripe.zold{background:var(--green)} .stripe.sarga{background:var(--yellow)} .stripe.piros{background:var(--red)}
+.klass{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin:8px 0}
+.klass button{padding:16px 8px;font-weight:800;font-size:1rem;border:2px solid var(--line);
+  background:var(--surface2);color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+.klass .z.on{background:var(--green);border-color:var(--green);color:#04140B}
+.klass .s.on{background:var(--yellow);border-color:var(--yellow);color:#191300}
+.klass .p.on{background:var(--red);border-color:var(--red);color:#fff}
+.mtx{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:8px 0}
+.mtx button{padding:12px 10px;text-align:left;font-size:.85rem;font-weight:600;line-height:1.25;
+  background:var(--surface2);border:1px solid var(--line);color:var(--muted);min-height:54px}
+.mtx button.on{background:#2E2405;border-color:var(--brand);color:var(--brand)}
+.badge{display:inline-flex;align-items:center;gap:5px;font-size:.75rem;font-weight:800;
+  padding:3px 9px;border-radius:12px}
+.badge.z{background:rgba(47,191,113,.15);color:var(--green)}
+.badge.s{background:rgba(247,201,72,.15);color:var(--yellow)}
+.badge.p{background:rgba(229,72,77,.15);color:var(--red)}
+.badge.ok{background:rgba(47,191,113,.15);color:var(--green)}
+.badge.grey{background:var(--surface2);color:var(--muted)}
+.thumbs{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}
+.thumbs .th{width:72px;height:72px;border-radius:8px;object-fit:cover;border:1px solid var(--line)}
+.thumbs .add{width:72px;height:72px;border-radius:8px;border:2px dashed var(--line);
+  background:transparent;color:var(--muted);font-size:1.6rem}
+.bottombar{position:fixed;bottom:0;left:0;right:0;z-index:30;
+  background:linear-gradient(transparent,var(--bg) 30%);padding:12px var(--pad) calc(12px + env(safe-area-inset-bottom))}
+.bottombar .inner{max-width:720px;margin:0 auto;display:flex;gap:10px}
+.bottombar .btn{margin:0}
+.modal{position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.75);display:flex;
+  align-items:flex-end;justify-content:center}
+.modal .sheet{background:var(--surface);border-radius:16px 16px 0 0;width:100%;max-width:720px;
+  max-height:88vh;overflow-y:auto;padding:18px var(--pad) calc(24px + env(safe-area-inset-bottom))}
+.modal img.big{width:100%;border-radius:8px}
+.mut{color:var(--muted);font-size:.85rem}
+.small{font-size:.8rem}
+.list-item{display:flex;align-items:center;gap:10px;padding:12px 0;border-bottom:1px solid var(--line)}
+.list-item:last-child{border:0}
+.list-item .grow{flex:1;min-width:0}
+.savebar{position:fixed;top:8px;right:12px;z-index:60;font-size:.7rem;color:var(--muted);
+  background:var(--surface);border:1px solid var(--line);padding:3px 8px;border-radius:10px;opacity:0;transition:opacity .3s}
+.savebar.show{opacity:1}
+.sig{width:100%;height:160px;background:#fff;border-radius:10px;touch-action:none}
+.hr{border:0;border-top:1px solid var(--line);margin:16px 0}
+.stat{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0}
+.center{text-align:center}
+a{color:var(--brand)}
+#qrbox{width:100%;border-radius:12px;overflow:hidden}
+@media print{ body *{visibility:hidden} #printArea,#printArea *{visibility:visible}
+  #printArea{position:absolute;left:0;top:0;width:100%} .noprint{display:none!important} }
+#printArea{display:none;background:#fff;color:#000}
+@media print{ #printArea{display:block} }
+#printArea .pg{page-break-after:always;padding:10mm;font-size:11pt;font-family:Arial,Helvetica,sans-serif}
+#printArea h1{font-size:16pt;text-align:center;margin:8mm 0 4mm}
+#printArea h2{font-size:12pt;margin:5mm 0 2mm}
+#printArea .phead{display:flex;justify-content:space-between;align-items:center;border-bottom:3px solid #FFB020;padding-bottom:3mm;margin-bottom:5mm}
+#printArea .plogo{font-weight:900;font-size:14pt;letter-spacing:.05em}
+#printArea .plogo span{color:#E8A200}
+#printArea table.mx{border-collapse:collapse;width:100%;font-size:7.5pt}
+#printArea table.mx th,#printArea table.mx td{border:1px solid #999;padding:2px 3px;text-align:center}
+#printArea table.mx th.vert{writing-mode:vertical-rl;transform:rotate(180deg);white-space:nowrap;
+  height:90px;font-size:7pt;font-weight:600;padding:4px 1px}
+#printArea table.mx td.l{text-align:left}
+#printArea table.mx tr.wh td{background:#D6E4F0;font-weight:700;text-align:left}
+#printArea table.mx tr.whok td{background:#C9E8C9;font-weight:700;text-align:left}
+#printArea .cP{background:#F4CCCC} #printArea .cS{background:#FFF2AC} #printArea .cZ{background:#C9E8C9}
+#printArea .verdict{font-size:15pt;font-weight:900;text-align:center;margin:6mm 0}
+#printArea .verdict.bad{color:#CC0000} #printArea .verdict.good{color:#1D7A34}
+#printArea .sigrow{display:flex;justify-content:space-around;margin-top:12mm;text-align:center}
+#printArea .sigrow img{height:22mm}
+#printArea .sigrow .ln{border-top:1px solid #000;padding-top:2mm;min-width:55mm;font-size:9pt}
+#printArea .catG{color:#1D7A34;font-weight:700} #printArea .catS{color:#B8860B;font-weight:700} #printArea .catP{color:#CC0000;font-weight:700}
+#printArea p{margin:2mm 0;text-align:justify;font-size:9.5pt}
+#printArea .photo-item{display:inline-block;width:46%;margin:1.5%;vertical-align:top}
+#printArea .photo-item img{width:100%;border:1px solid #999}
+#printArea .photo-item .cap{font-size:8pt;margin-top:1mm}
+</style>
+</head>
+<body>
+<div class="savebar" id="savebar">Mentve ✓</div>
+<div id="app"></div>
+<div id="modals"></div>
+<div id="printArea"></div>
+<script>
+/* ============ ALAP: IndexedDB tároló ============ */
+const idb={db:null,
+ open(){return new Promise((res,rej)=>{const r=indexedDB.open('rszapp',1);
+  r.onupgradeneeded=e=>{const d=e.target.result;
+   if(!d.objectStoreNames.contains('kv'))d.createObjectStore('kv');
+   if(!d.objectStoreNames.contains('photos'))d.createObjectStore('photos');};
+  r.onsuccess=e=>{idb.db=e.target.result;res()};r.onerror=()=>rej(r.error);})},
+ get(st,k){return new Promise((res,rej)=>{const t=idb.db.transaction(st).objectStore(st).get(k);
+  t.onsuccess=()=>res(t.result);t.onerror=()=>rej(t.error)})},
+ set(st,k,v){return new Promise((res,rej)=>{const t=idb.db.transaction(st,'readwrite').objectStore(st).put(v,k);
+  t.onsuccess=()=>res();t.onerror=()=>rej(t.error)})},
+ del(st,k){return new Promise((res,rej)=>{const t=idb.db.transaction(st,'readwrite').objectStore(st).delete(k);
+  t.onsuccess=()=>res();t.onerror=()=>rej(t.error)})},
+ keys(st){return new Promise((res,rej)=>{const t=idb.db.transaction(st).objectStore(st).getAllKeys();
+  t.onsuccess=()=>res(t.result);t.onerror=()=>rej(t.error)})}};
+
+/* ============ ÁLLAPOT ============ */
+let S=null; let dirty=false; let saveTimer=null;
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+const now=()=>Date.now();
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmtD=d=>{const x=new Date(d);return x.getFullYear()+'.'+String(x.getMonth()+1).padStart(2,'0')+'.'+String(x.getDate()).padStart(2,'0')+'.'};
+
+const DEFAULT_TEMPLATES={
+ modszertan:`A vizsgálat az állványrendszerek műszaki állapotának időszakos biztonsági felülvizsgálata, az MSZ EN 15635 szabvány szerint. Vizsgálati módszerünk a szemrevételezés és a mérőeszközös ellenőrzés volt, amely az alábbiakra terjedt ki:
+• Állványkeretek (lábak, rácselemek) sérülései, deformációi
+• Kereszttartók sértetlensége
+• Biztosító elemek meglétének ellenőrzése
+• Sarok- és lábvédők állapota, rögzítés ellenőrzése
+• Egyéb rendellenességek vizsgálata
+• A rakományalkotó eszközök helyzete az állványzaton és a padlón
+• A terhelési információs feliratok kihelyezésének ellenőrzése
+
+A vizsgálat nem terjed ki az állványt szállító, illetve telepítő cég telepítési munkájának ellenőrzésére.
+A felülvizsgálat eredményeit az állványokon található kódok / tárhelykódok szerint adtuk meg a mellékelt HIBAJEGYZÉK-ben összefoglalva.`,
+ zold:`ZÖLD kategória: csak megfigyelést igényel. A meghatározott károsodási határértékeket az elem nem lépte túl, teherbírás-csökkentésre vagy javításra nincs szükség. Az érintett elemet fel kell jegyezni, és a következő felülvizsgálat során újra kell értékelni, hogy történt-e további deformáció.`,
+ sarga:`SÁRGA kategória: veszélyes károsodás, amely mielőbbi intézkedést igényel. A károsodás a határértékeket kevesebb mint két tényezővel lépi túl, és a sérült alkatrész cseréjét eredményezi. Azonnali leürítés nem szükséges, ugyanakkor az áru kitárolását követően betárolás már nem végezhető a javításig. A feljegyzést követő 4 héten belül el nem végzett javítás esetén a sérülés PIROS fokozatra minősül át.`,
+ piros:`PIROS kategória: nagyon komoly károsodás, amely azonnali intézkedést igényel. A károsodás a határértékeket kettő vagy több tényezővel lépi túl. Az érintett állványmezők azonnali leürítése szükséges; betárolás nem lehetséges mindaddig, amíg a sérülés szakszerű javítása meg nem történt.`,
+ figyelmeztetes:`Felhívjuk figyelmüket, hogy egy állványrendszer szintosztásának módosításához a gyártó / szállító hozzájárulása szükséges!`,
+ zaro:`A kivitelező kijelenti, hogy a jegyzőkönyv a valóságnak megfelelően tartalmazza a tényeket és adatokat. A vizsgálat megállapításai a helyszín pillanatnyi állapotát rögzítik.`};
+
+const DEFAULT_NOTES=['Sérült, cseréje szükséges!','Hiányzik, pótlása szükséges!',
+ 'Rossz összeszerelés! Merevítő átrakása szükséges!','Átjáróba áthullás elleni védelem előírás!',
+ 'Eldeformálódott, kiegyenesítés szükséges!'];
+const WH_SUGGEST=['Készáru raktár','Alapanyag raktár','Alkatrész raktár','Karbantartási raktár','Félkész raktár','Szerszám raktár'];
+
+const MATRIX=[
+ {k:'talplemez',label:'Talplemez / Talpcsavar'},
+ {k:'labElso',label:'Állványláb — Első'},
+ {k:'labHatso',label:'Állványláb — Hátsó'},
+ {k:'protektor',label:'Protektor (lábvédő)'},
+ {k:'keretCsere',label:'Keretösszekötő — Csere'},
+ {k:'gerElsoJav',label:'Tartógerenda Első — Javítás'},
+ {k:'gerElsoCsere',label:'Tartógerenda Első — Csere'},
+ {k:'gerHatsoJav',label:'Tartógerenda Hátsó — Javítás'},
+ {k:'gerHatsoCsere',label:'Tartógerenda Hátsó — Csere'},
+ {k:'terheles',label:'Terhelésjelző tábla'},
+ {k:'biztszeg',label:'Biztosítószeg'},
+ {k:'tulJav',label:'Túltolásgátló — Javítás'},
+ {k:'tulCsere',label:'Túltolásgátló — Csere'},
+ {k:'egyeb',label:'Egyéb (megjegyzésben!)'}];
+
+function freshState(){return{ver:1,
+ inspectors:[],manufacturers:[{id:uid(),name:'MPB',count:0,updatedAt:now()},{id:uid(),name:'KAM',count:0,updatedAt:now()}],
+ customers:[],sessions:[],
+ settings:{company:'Raktárszerviz Kft.',companyLine:'',dropboxKey:'',dropboxRefresh:'',autoSync:true,
+  noteTemplates:[...DEFAULT_NOTES],templates:{...DEFAULT_TEMPLATES},updatedAt:now()}}}
+
+async function loadState(){const d=await idb.get('kv','data');S=d||freshState();
+ if(!S.settings.templates)S.settings.templates={...DEFAULT_TEMPLATES};
+ if(!S.settings.noteTemplates)S.settings.noteTemplates=[...DEFAULT_NOTES];}
+function markDirty(){dirty=true;clearTimeout(saveTimer);saveTimer=setTimeout(saveState,800)}
+async function saveState(){if(!S)return;dirty=false;await idb.set('kv','data',S);
+ const sb=document.getElementById('savebar');sb.classList.add('show');setTimeout(()=>sb.classList.remove('show'),1200)}
+setInterval(()=>{if(dirty)saveState()},60000);
+window.addEventListener('beforeunload',()=>{if(dirty){idb.set('kv','data',S)}});
+
+/* ============ SEGÉD lekérdezők ============ */
+const cust=id=>S.customers.find(c=>c.id===id);
+const sess=id=>S.sessions.find(s=>s.id===id);
+const manuName=id=>{const m=S.manufacturers.find(m=>m.id===id);return m?m.name:''};
+function sessStats(s){let p=0,y=0,z=0;for(const d of s.damages){if(d.klass==='piros')p++;else if(d.klass==='sarga')y++;else if(d.klass==='zold')z++;}return{p,y,z}}
+function genCode(){const y=new Date().getFullYear();
+ const n=S.sessions.filter(s=>s.code&&s.code.includes('-'+y+'-')).length+1;
+ return 'RSZ-'+y+'-'+String(n).padStart(3,'0')}
+function touchManu(id){const m=S.manufacturers.find(m=>m.id===id);if(m){m.count=(m.count||0)+1;m.updatedAt=now()}}
+function sortedManus(){return [...S.manufacturers].sort((a,b)=>(b.count||0)-(a.count||0))}
+
+/* ============ ROUTER ============ */
+function go(h){location.hash=h}
+window.addEventListener('hashchange',render);
+function render(){const h=location.hash.slice(1)||'home';const[r,a,b]=h.split('/');
+ const app=document.getElementById('app');
+ const R={home:vHome,new:vNew,session:()=>vSession(a),wh:()=>vWh(a,b),dmg:()=>vDmg(a,b),
+  close:()=>vClose(a),report:()=>vReport(a),archive:vArchive,settings:vSettings};
+ (R[r]||vHome)();window.scrollTo(0,0)}
+function top(title,sub,backHash){return `<div class="topbar">
+ ${backHash!==undefined?`<button class="back" onclick="go('${backHash}')">‹</button>`:''}
+ <div class="ttl"><h1>${title}</h1>${sub?`<div class="sub">${sub}</div>`:''}</div></div>`}
+
+/* ============ KEZDŐKÉPERNYŐ ============ */
+function vHome(){const drafts=S.sessions.filter(s=>s.status==='draft');
+ const app=document.getElementById('app');
+ app.innerHTML=`<div class="topbar"><div class="ttl">
+   <div class="wordmark">RAKTÁR<b>SZERVIZ</b></div>
+   <div class="sub">Állványfelülvizsgálat · MSZ EN 15635</div></div>
+   <div id="syncchip" class="badge grey">${navigator.onLine?'online':'offline'}</div></div>
+ <button class="btn primary" onclick="go('new')">＋ Új felülvizsgálat indítása</button>
+ ${drafts.map(s=>{const c=cust(s.customerId);const st=sessStats(s);
+  return `<div class="card tappable" onclick="go('session/${s.id}')">
+   <div class="eyebrow">Folyamatban</div>
+   <h2>${esc(c?c.name:'?')}</h2>
+   <div class="mut">${fmtD(s.date)} · ${esc(s.code)}</div>
+   <div class="stat">
+    ${st.p?`<span class="badge p">${st.p} piros</span>`:''}
+    ${st.y?`<span class="badge s">${st.y} sárga</span>`:''}
+    ${st.z?`<span class="badge z">${st.z} zöld</span>`:''}
+    <span class="badge grey">${s.damages.length} bejegyzés</span></div></div>`}).join('')}
+ <button class="btn" onclick="go('archive')">Korábbi jegyzőkönyvek (${S.sessions.filter(s=>s.status==='locked').length})</button>
+ <button class="btn" onclick="go('settings')">Beállítások · Törzsadatok · Szinkron</button>
+ ${S.settings.dropboxRefresh?`<div class="center mut small">Dropbox kapcsolódva · ${S.lastSync?('utolsó szinkron: '+new Date(S.lastSync).toLocaleString('hu')):'még nem szinkronizált'}</div>`:''}`;}
+
+/* ============ ÚJ VIZSGÁLAT (wizard) ============ */
+let W={};
+function vNew(){W={customerId:'',name:'',address:'',contact:'',email:'',phone:'',
+ inspectorIds:[],date:new Date().toISOString().slice(0,10)};
+ const app=document.getElementById('app');
+ app.innerHTML=top('Új felülvizsgálat','1/2 — Ügyfél és helyszín','home')+`
+ ${S.customers.length?`<label class="fld">Korábbi ügyfél kiválasztása</label>
+ <select onchange="wPickCust(this.value)"><option value="">— Új ügyfél felvétele —</option>
+  ${S.customers.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('')}</select>`:''}
+ <label class="fld">Cégnév *</label><input type="text" id="w_name" value="">
+ <label class="fld">Telephely címe *</label><input type="text" id="w_addr" value="">
+ <label class="fld">Ügyfél jelenlévő képviselője *</label><input type="text" id="w_contact" value="">
+ <div class="row">
+  <div><label class="fld">E-mail</label><input type="email" id="w_email" value=""></div>
+  <div><label class="fld">Telefon</label><input type="text" id="w_phone" value=""></div></div>
+ <label class="fld">Vizsgálat dátuma</label><input type="date" id="w_date" value="${W.date}">
+ <hr class="hr">
+ <label class="fld">Vizsgálatot végző Raktárszerviz dolgozó(k) *</label>
+ <div class="chips" id="w_insp">${inspChips()}</div>
+ <button class="btn small" onclick="addInspector()">＋ Új vizsgáló hozzáadása</button>
+ <div class="bottombar"><div class="inner">
+  <button class="btn primary" onclick="wCreate()">Vizsgálat indítása ›</button></div></div>`;}
+function inspChips(){return S.inspectors.filter(i=>i.active!==false).map(i=>
+ `<button class="chip ${W.inspectorIds.includes(i.id)?'on':''}" onclick="wTogIns('${i.id}')">${esc(i.name)}</button>`).join('')||'<span class="mut small">Még nincs vizsgáló felvéve — adj hozzá egyet.</span>'}
+function wTogIns(id){const i=W.inspectorIds.indexOf(id);
+ if(i<0)W.inspectorIds.push(id);else W.inspectorIds.splice(i,1);
+ document.getElementById('w_insp').innerHTML=inspChips()}
+function addInspector(){const n=prompt('Vizsgáló neve:');if(!n)return;
+ const o={id:uid(),name:n.trim(),active:true,updatedAt:now()};S.inspectors.push(o);
+ W.inspectorIds.push(o.id);markDirty();
+ const el=document.getElementById('w_insp');if(el)el.innerHTML=inspChips();
+ const el2=document.getElementById('set_insp');if(el2)vSettings()}
+function wPickCust(id){W.customerId=id;const c=cust(id);
+ document.getElementById('w_name').value=c?c.name:'';
+ document.getElementById('w_addr').value=c?(c.address||''):'';
+ document.getElementById('w_contact').value=c?(c.contact||''):'';
+ document.getElementById('w_email').value=c?(c.email||''):'';
+ document.getElementById('w_phone').value=c?(c.phone||''):''}
+function wCreate(){const name=document.getElementById('w_name').value.trim();
+ const addr=document.getElementById('w_addr').value.trim();
+ const contact=document.getElementById('w_contact').value.trim();
+ if(!name||!addr||!contact){alert('A cégnév, cím és kapcsolattartó megadása kötelező.');return}
+ if(!W.inspectorIds.length){alert('Legalább egy vizsgálót válassz ki.');return}
+ let c=W.customerId?cust(W.customerId):null;
+ if(!c){c={id:uid(),name,address:addr,contact,email:'',phone:'',
+   warehouses:[],locations:[],updatedAt:now()};S.customers.push(c)}
+ c.name=name;c.address=addr;c.contact=contact;
+ c.email=document.getElementById('w_email').value.trim();
+ c.phone=document.getElementById('w_phone').value.trim();c.updatedAt=now();
+ const s={id:uid(),code:genCode(),customerId:c.id,
+  date:document.getElementById('w_date').value||new Date().toISOString().slice(0,10),
+  status:'draft',inspectorIds:[...W.inspectorIds],contactName:contact,
+  warehouses:c.warehouses.map(w=>({id:w.id,name:w.name})),whOk:{},
+  damages:[],signatures:{},createdAt:now(),updatedAt:now()};
+ S.sessions.push(s);markDirty();go('session/'+s.id)}
+
+/* ============ VIZSGÁLAT FŐKÉPERNYŐ (raktárak) ============ */
+function vSession(id){const s=sess(id);if(!s){go('home');return}
+ const c=cust(s.customerId);const st=sessStats(s);const locked=s.status==='locked';
+ const app=document.getElementById('app');
+ app.innerHTML=top(esc(c.name),fmtD(s.date)+' · '+esc(s.code)+(locked?' · LEZÁRT':''),'home')+`
+ <div class="stat">
+  <span class="badge p">${st.p} piros</span><span class="badge s">${st.y} sárga</span>
+  <span class="badge z">${st.z} zöld</span><span class="badge grey">${s.damages.length} bejegyzés</span></div>
+ <div class="eyebrow" style="margin-top:14px">Raktárak a telephelyen</div>
+ ${s.warehouses.map(w=>{const ds=s.damages.filter(d=>d.warehouseId===w.id);
+  const ok=s.whOk[w.id];
+  return `<div class="card tappable" onclick="go('wh/${s.id}/${w.id}')">
+   <h2 style="margin:0">${esc(w.name)}</h2>
+   <div class="stat">${ds.length?ds.map(()=>'').join('')+
+    `<span class="badge grey">${ds.length} bejegyzés</span>`+
+    ['piros','sarga','zold'].map(k=>{const n=ds.filter(d=>d.klass===k).length;
+     return n?`<span class="badge ${k[0]==='p'?'p':k[0]==='s'?'s':'z'}">${n}</span>`:''}).join('')
+    :(ok?'<span class="badge ok">Rendben ✓</span>':'<span class="badge grey">nincs bejegyzés</span>')}</div></div>`}).join('')
+  ||'<div class="mut">Még nincs raktár felvéve.</div>'}
+ ${locked?'':`<button class="btn" onclick="addWh('${s.id}')">＋ Raktár hozzáadása</button>
+ <div class="chips">${WH_SUGGEST.filter(n=>!s.warehouses.some(w=>w.name===n)).map(n=>
+  `<button class="chip" onclick="addWhNamed('${s.id}',this.textContent)">${n}</button>`).join('')}</div>`}
+ <div class="bottombar"><div class="inner">
+ ${locked?`<button class="btn primary" onclick="go('report/${s.id}')">Jegyzőkönyv megnyitása ›</button>`
+  :`<button class="btn" onclick="go('home')">Mentés, kilépés</button>
+    <button class="btn primary" onclick="go('close/${s.id}')">Lezárás ›</button>`}</div></div>`;}
+function addWh(sid){const n=prompt('Raktár megnevezése:');if(!n)return;addWhNamed(sid,n.trim())}
+function addWhNamed(sid,name){const s=sess(sid);const c=cust(s.customerId);
+ let cw=c.warehouses.find(w=>w.name===name);
+ if(!cw){cw={id:uid(),name,updatedAt:now()};c.warehouses.push(cw);c.updatedAt=now()}
+ if(!s.warehouses.some(w=>w.id===cw.id)){s.warehouses.push({id:cw.id,name});s.updatedAt=now()}
+ markDirty();vSession(sid)}
+
+/* ============ RAKTÁR KÉPERNYŐ (bejegyzések) ============ */
+function vWh(sid,wid){const s=sess(sid);if(!s){go('home');return}
+ const w=s.warehouses.find(x=>x.id===wid);const locked=s.status==='locked';
+ const ds=s.damages.filter(d=>d.warehouseId===wid);
+ const app=document.getElementById('app');
+ app.innerHTML=top(esc(w.name),esc(cust(s.customerId).name),'session/'+sid)+`
+ ${ds.length===0?`<div class="card"><label style="display:flex;align-items:center;gap:10px">
+  <input type="checkbox" style="width:22px;height:22px" ${s.whOk[wid]?'checked':''}
+   ${locked?'disabled':''} onchange="togWhOk('${sid}','${wid}',this.checked)">
+  <span><b>Rendben!</b> — a raktárban nem találtunk sérülést</span></label></div>`:''}
+ ${ds.map(d=>dmgCard(s,d)).join('')}
+ ${locked?'':`<div class="bottombar"><div class="inner">
+  <button class="btn primary" onclick="newDmg('${sid}','${wid}')">＋ Új sérülés rögzítése</button></div></div>`}`;}
+function togWhOk(sid,wid,v){const s=sess(sid);s.whOk[wid]=v;s.updatedAt=now();markDirty()}
+function dmgCard(s,d){const parts=MATRIX.filter(m=>d.matrix[m.k]).map(m=>m.label).join(' · ');
+ return `<div class="card tappable" onclick="go('dmg/${s.id}/${d.id}')">
+  <div class="stripe ${d.klass||''}"></div>
+  <div style="margin-left:8px">
+  <h2 style="margin:0">${esc(d.locationCode||'(nincs tárhelykód)')}
+   ${d.row?`<span class="mut small"> · Sor: ${esc(d.row)}</span>`:''}
+   ${d.level!==''&&d.level!=null?`<span class="mut small"> · Szint: ${esc(d.level)}</span>`:''}</h2>
+  <div class="mut small">${esc(manuName(d.manufacturerId))}${parts?' — '+esc(parts):''}</div>
+  ${d.note?`<div class="small">${esc(d.note)}</div>`:''}
+  <div class="stat">${d.photos.length?`<span class="badge grey">📷 ${d.photos.length}</span>`:''}
+   ${d.klass?`<span class="badge ${d.klass[0]==='p'?'p':d.klass[0]==='s'?'s':'z'}">${d.klass.toUpperCase()}</span>`:''}</div>
+  </div></div>`}
+function newDmg(sid,wid){const s=sess(sid);
+ const d={id:uid(),warehouseId:wid,locationCode:'',row:'',level:'0',manufacturerId:'',
+  matrix:{},klass:'',note:'',internalNote:'',qty:1,sizeH:'',sizeW:'',sizeM:'',
+  photos:[],createdAt:now(),updatedAt:now()};
+ s.damages.push(d);s.whOk[wid]=false;markDirty();go('dmg/'+sid+'/'+d.id)}
+
+/* ============ SÉRÜLÉS RÖGZÍTŐ ============ */
+function vDmg(sid,did){const s=sess(sid);if(!s){go('home');return}
+ const d=s.damages.find(x=>x.id===did);if(!d){go('session/'+sid);return}
+ const locked=s.status==='locked';const c=cust(s.customerId);
+ const w=s.warehouses.find(x=>x.id===d.warehouseId);
+ const knownLocs=c.locations.filter(l=>l.warehouseId===d.warehouseId);
+ const app=document.getElementById('app');const dis=locked?'disabled':'';
+ app.innerHTML=top('Sérülés rögzítése',esc(w.name)+' · '+esc(c.name),'wh/'+sid+'/'+d.warehouseId)+`
+ <label class="fld">Tárhely azonosító *</label>
+ <div class="row"><input type="text" id="d_code" value="${esc(d.locationCode)}" ${dis}
+   list="loclist" oninput="dSet('${sid}','${did}','locationCode',this.value);dLocHint('${sid}','${did}',this.value)">
+  <button class="btn small" style="flex:none;min-height:48px" ${dis} onclick="openScan(v=>{
+   document.getElementById('d_code').value=v;dSet('${sid}','${did}','locationCode',v);dLocHint('${sid}','${did}',v)})">📷 Szken</button></div>
+ <datalist id="loclist">${knownLocs.map(l=>`<option value="${esc(l.code)}">`).join('')}</datalist>
+ <div class="row">
+  <div><label class="fld">Sor</label><input type="text" id="d_row" value="${esc(d.row)}" ${dis}
+    oninput="dSet('${sid}','${did}','row',this.value)"></div>
+  <div><label class="fld">Szint</label><input type="text" id="d_level" value="${esc(d.level)}" ${dis}
+    oninput="dSet('${sid}','${did}','level',this.value)"></div></div>
+ <label class="fld">Gyártó / típus</label>
+ <div class="chips" id="d_manu">${manuChips(sid,did,d)}</div>
+ <hr class="hr"><div class="eyebrow">Mi sérült? (több is jelölhető)</div>
+ <div class="mtx" id="d_mtx">${mtxBtns(sid,did,d)}</div>
+ <div class="eyebrow" style="margin-top:14px">Sérülési osztály *</div>
+ <div class="klass" id="d_klass">${klassBtns(sid,did,d)}</div>
+ <label class="fld">Megjegyzés (jegyzőkönyvbe kerül)</label>
+ <div class="chips">${S.settings.noteTemplates.map(t=>
+  `<button class="chip" ${dis} onclick="dNote('${sid}','${did}',this.textContent)">${esc(t)}</button>`).join('')}</div>
+ <textarea id="d_note" ${dis} oninput="dSet('${sid}','${did}','note',this.value)">${esc(d.note)}</textarea>
+ <hr class="hr"><div class="eyebrow">Belső adatok (csak a belső Excelben)</div>
+ <label class="fld">Saját megjegyzés (cikkszám, RAL, műszaki adat)</label>
+ <textarea id="d_inote" ${dis} oninput="dSet('${sid}','${did}','internalNote',this.value)">${esc(d.internalNote)}</textarea>
+ <div class="row">
+  <div><label class="fld">Mennyiség (db)</label><input type="number" min="1" value="${d.qty}" ${dis}
+    oninput="dSet('${sid}','${did}','qty',this.value)"></div></div>
+ <label class="fld">Méret (mm)</label>
+ <div class="row">
+  <input type="text" placeholder="hossz" value="${esc(d.sizeH)}" ${dis} oninput="dSet('${sid}','${did}','sizeH',this.value)">
+  <input type="text" placeholder="szélesség" value="${esc(d.sizeW)}" ${dis} oninput="dSet('${sid}','${did}','sizeW',this.value)">
+  <input type="text" placeholder="magasság" value="${esc(d.sizeM)}" ${dis} oninput="dSet('${sid}','${did}','sizeM',this.value)"></div>
+ <hr class="hr"><div class="eyebrow">Fotók</div>
+ <div class="thumbs" id="d_thumbs"></div>
+ <input type="file" id="d_file" accept="image/*" capture="environment" style="display:none"
+  onchange="addPhoto('${sid}','${did}',this)">
+ ${locked?'':`<div class="bottombar"><div class="inner">
+  <button class="btn danger" style="flex:0 0 auto;width:auto;padding:14px 16px" onclick="delDmg('${sid}','${did}')">Törlés</button>
+  <button class="btn primary" onclick="dDone('${sid}','${did}')">Kész ✓</button></div></div>`}`;
+ renderThumbs(sid,did)}
+function manuChips(sid,did,d){const dis=sess(sid).status==='locked';
+ return sortedManus().map(m=>`<button class="chip ${d.manufacturerId===m.id?'on':''}"
+  ${dis?'disabled':''} onclick="dManu('${sid}','${did}','${m.id}')">${esc(m.name)}</button>`).join('')+
+ (dis?'':`<button class="chip count" onclick="dManuNew('${sid}','${did}')">＋ új gyártó</button>`)}
+function mtxBtns(sid,did,d){const dis=sess(sid).status==='locked';
+ return MATRIX.map(m=>`<button class="${d.matrix[m.k]?'on':''}" ${dis?'disabled':''}
+  onclick="dMtx('${sid}','${did}','${m.k}')">${m.label}</button>`).join('')}
+function klassBtns(sid,did,d){const dis=sess(sid).status==='locked'?'disabled':'';
+ return `<button class="z ${d.klass==='zold'?'on':''}" ${dis} onclick="dKlass('${sid}','${did}','zold')">Zöld</button>
+ <button class="s ${d.klass==='sarga'?'on':''}" ${dis} onclick="dKlass('${sid}','${did}','sarga')">Sárga</button>
+ <button class="p ${d.klass==='piros'?'on':''}" ${dis} onclick="dKlass('${sid}','${did}','piros')">Piros</button>`}
+function dGet(sid,did){return sess(sid).damages.find(x=>x.id===did)}
+function dSet(sid,did,k,v){const d=dGet(sid,did);d[k]=v;d.updatedAt=now();sess(sid).updatedAt=now();markDirty()}
+function dNote(sid,did,t){const d=dGet(sid,did);d.note=d.note?(d.note+' '+t):t;d.updatedAt=now();
+ document.getElementById('d_note').value=d.note;markDirty()}
+function dMtx(sid,did,k){const d=dGet(sid,did);d.matrix[k]=!d.matrix[k];d.updatedAt=now();markDirty();
+ document.getElementById('d_mtx').innerHTML=mtxBtns(sid,did,d)}
+function dKlass(sid,did,k){const d=dGet(sid,did);d.klass=k;d.updatedAt=now();markDirty();
+ document.getElementById('d_klass').innerHTML=klassBtns(sid,did,d)}
+function dManu(sid,did,mid){const d=dGet(sid,did);d.manufacturerId=mid;d.updatedAt=now();
+ touchManu(mid);markDirty();document.getElementById('d_manu').innerHTML=manuChips(sid,did,d)}
+function dManuNew(sid,did){const n=prompt('Gyártó neve:');if(!n)return;
+ const m={id:uid(),name:n.trim(),count:1,updatedAt:now()};S.manufacturers.push(m);
+ dManu(sid,did,m.id)}
+function dDone(sid,did){const d=dGet(sid,did);
+ if(!d.locationCode.trim()){alert('A tárhely azonosító megadása kötelező.');return}
+ if(!d.klass){alert('Válaszd ki a sérülési osztályt (Zöld / Sárga / Piros).');return}
+ const c=cust(sess(sid).customerId);
+ let loc=c.locations.find(l=>l.warehouseId===d.warehouseId&&l.code===d.locationCode.trim());
+ if(!loc){loc={id:uid(),warehouseId:d.warehouseId,code:d.locationCode.trim(),
+  row:d.row,level:d.level,manufacturerId:d.manufacturerId,updatedAt:now()};c.locations.push(loc)}
+ else{loc.row=d.row;loc.level=d.level;if(d.manufacturerId)loc.manufacturerId=d.manufacturerId;loc.updatedAt=now()}
+ c.updatedAt=now();markDirty();go('wh/'+sid+'/'+d.warehouseId)}
+function delDmg(sid,did){if(!confirm('Biztosan törlöd ezt a bejegyzést?'))return;
+ const s=sess(sid);const d=dGet(sid,did);const wid=d.warehouseId;
+ d.photos.forEach(p=>idb.del('photos',p));
+ s.damages=s.damages.filter(x=>x.id!==did);s.updatedAt=now();markDirty();go('wh/'+sid+'/'+wid)}
+function dLocHint(sid,did,code){const s=sess(sid);const c=cust(s.customerId);const d=dGet(sid,did);
+ const loc=c.locations.find(l=>l.warehouseId===d.warehouseId&&l.code===code.trim());
+ if(loc){if(loc.row){d.row=loc.row;document.getElementById('d_row').value=loc.row}
+  if(loc.level!=null){d.level=loc.level;document.getElementById('d_level').value=loc.level}
+  if(loc.manufacturerId){d.manufacturerId=loc.manufacturerId;
+   document.getElementById('d_manu').innerHTML=manuChips(sid,did,d)}
+  d.updatedAt=now();markDirty()}}
+
+/* ============ FOTÓK ============ */
+async function renderThumbs(sid,did){const d=dGet(sid,did);const box=document.getElementById('d_thumbs');
+ if(!box)return;const locked=sess(sid).status==='locked';let h='';
+ for(const pid of d.photos){const p=await idb.get('photos',pid);
+  if(p)h+=`<img class="th" src="${p.thumb}" onclick="viewPhoto('${sid}','${did}','${pid}')">`}
+ if(!locked)h+=`<button class="add" onclick="document.getElementById('d_file').click()">＋</button>`;
+ box.innerHTML=h}
+function addPhoto(sid,did,inp){const f=inp.files[0];if(!f)return;inp.value='';
+ const img=new Image();const url=URL.createObjectURL(f);
+ img.onload=async()=>{URL.revokeObjectURL(url);
+  const full=scaleImg(img,1600,.82),thumb=scaleImg(img,240,.7);
+  const pid=uid();await idb.set('photos',pid,{id:pid,full,thumb,at:now()});
+  const d=dGet(sid,did);d.photos.push(pid);d.updatedAt=now();markDirty();renderThumbs(sid,did)};
+ img.src=url}
+function scaleImg(img,max,q){const r=Math.min(1,max/Math.max(img.width,img.height));
+ const cv=document.createElement('canvas');cv.width=Math.round(img.width*r);cv.height=Math.round(img.height*r);
+ cv.getContext('2d').drawImage(img,0,0,cv.width,cv.height);return cv.toDataURL('image/jpeg',q)}
+async function viewPhoto(sid,did,pid){const p=await idb.get('photos',pid);
+ const locked=sess(sid).status==='locked';
+ modal(`<img class="big" src="${p.full}">
+  ${locked?'':`<button class="btn danger" onclick="delPhoto('${sid}','${did}','${pid}')">Fotó törlése</button>`}
+  <button class="btn" onclick="closeModal()">Bezárás</button>`)}
+async function delPhoto(sid,did,pid){if(!confirm('Törlöd a fotót?'))return;
+ await idb.del('photos',pid);const d=dGet(sid,did);
+ d.photos=d.photos.filter(x=>x!==pid);d.updatedAt=now();markDirty();closeModal();renderThumbs(sid,did)}
+function modal(html){document.getElementById('modals').innerHTML=
+ `<div class="modal" onclick="if(event.target===this)closeModal()"><div class="sheet">${html}</div></div>`}
+function closeModal(){stopScan();document.getElementById('modals').innerHTML=''}
+
+/* ============ QR / VONALKÓD ============ */
+let qrScanner=null;
+function openScan(cb){if(typeof Html5Qrcode==='undefined'){
+  alert('A kódolvasó modul nem érhető el (első használathoz internet szükséges). Írd be kézzel a kódot.');return}
+ modal(`<h2>Kód beolvasása</h2><div class="mut small">QR-kód vagy vonalkód</div><div id="qrbox"></div>
+  <button class="btn" onclick="closeModal()">Mégse</button>`);
+ qrScanner=new Html5Qrcode('qrbox');
+ qrScanner.start({facingMode:'environment'},{fps:10,qrbox:{width:250,height:180}},
+  txt=>{const v=txt;stopScan();closeModal();cb(v)},()=>{})
+  .catch(e=>{alert('Kamera nem indítható: '+e);closeModal()})}
+function stopScan(){if(qrScanner){try{qrScanner.stop().catch(()=>{})}catch(e){};qrScanner=null}}
+
+/* ============ LEZÁRÁS + ALÁÍRÁS ============ */
+function vClose(sid){const s=sess(sid);if(!s){go('home');return}
+ const c=cust(s.customerId);const st=sessStats(s);
+ const result=(st.p||st.y)?'NEM FELELT MEG':'MEGFELELT';
+ const next=new Date(s.date);next.setFullYear(next.getFullYear()+1);
+ const missing=s.damages.filter(d=>!d.locationCode||!d.klass).length;
+ const app=document.getElementById('app');
+ app.innerHTML=top('Lezárás',esc(c.name)+' · '+fmtD(s.date),'session/'+sid)+`
+ <div class="card"><div class="eyebrow">Összesítés</div>
+  <div class="stat"><span class="badge p">${st.p} piros</span><span class="badge s">${st.y} sárga</span>
+  <span class="badge z">${st.z} zöld</span><span class="badge grey">${s.damages.length} bejegyzés · ${s.warehouses.length} raktár</span></div>
+  ${missing?`<div style="color:var(--red)">⚠ ${missing} bejegyzésből hiányzik a tárhelykód vagy a besorolás!</div>`:''}
+  <hr class="hr"><div class="eyebrow">Az állványrendszerek állapota</div>
+  <h1 style="color:${result==='MEGFELELT'?'var(--green)':'var(--red)'}">${result}</h1>
+  <div class="mut small">az MSZ EN 15635 szabványban előírt követelményeknek${result==='MEGFELELT'?'':', a hibajegyzékben feltüntetett tárhelyeken'}.</div>
+  <label class="fld">Következő felülvizsgálat legkésőbb</label>
+  <input type="date" id="c_next" value="${next.toISOString().slice(0,10)}"></div>
+ <div class="card"><div class="eyebrow">Vizsgáló aláírása (${esc(S.inspectors.filter(i=>s.inspectorIds.includes(i.id)).map(i=>i.name).join(', '))})</div>
+  <canvas class="sig" id="sig1"></canvas>
+  <button class="btn small" onclick="clearSig('sig1')">Törlés</button></div>
+ <div class="card"><div class="eyebrow">Ügyfél képviselőjének aláírása</div>
+  <label class="fld">Átvevő neve</label><input type="text" id="c_client" value="${esc(s.contactName||'')}">
+  <canvas class="sig" id="sig2"></canvas>
+  <button class="btn small" onclick="clearSig('sig2')">Törlés</button></div>
+ <div class="bottombar"><div class="inner">
+  <button class="btn primary" onclick="doClose('${sid}')">Jegyzőkönyv lezárása ✓</button></div></div>`;
+ initSig('sig1');initSig('sig2')}
+const sigDrawn={};
+function initSig(id){const cv=document.getElementById(id);
+ cv.width=cv.offsetWidth*2;cv.height=cv.offsetHeight*2;
+ const ctx=cv.getContext('2d');ctx.scale(2,2);ctx.lineWidth=2;ctx.lineCap='round';ctx.strokeStyle='#111';
+ sigDrawn[id]=false;let draw=false,lx=0,ly=0;
+ const pos=e=>{const r=cv.getBoundingClientRect();return[e.clientX-r.left,e.clientY-r.top]};
+ cv.onpointerdown=e=>{draw=true;[lx,ly]=pos(e);cv.setPointerCapture(e.pointerId)};
+ cv.onpointermove=e=>{if(!draw)return;const[x,y]=pos(e);
+  ctx.beginPath();ctx.moveTo(lx,ly);ctx.lineTo(x,y);ctx.stroke();[lx,ly]=[x,y];sigDrawn[id]=true};
+ cv.onpointerup=()=>draw=false}
+function clearSig(id){const cv=document.getElementById(id);
+ cv.getContext('2d').clearRect(0,0,cv.width,cv.height);sigDrawn[id]=false}
+function doClose(sid){const s=sess(sid);
+ if(!sigDrawn['sig1']||!sigDrawn['sig2']){alert('Mindkét aláírás megadása kötelező a lezáráshoz.');return}
+ const cn=document.getElementById('c_client').value.trim();
+ if(!cn){alert('Az átvevő nevének megadása kötelező.');return}
+ const st=sessStats(s);
+ s.result=(st.p||st.y)?'NEM FELELT MEG':'MEGFELELT';
+ s.nextDate=document.getElementById('c_next').value;
+ s.signatures={inspector:document.getElementById('sig1').toDataURL('image/png'),
+  client:document.getElementById('sig2').toDataURL('image/png'),clientName:cn};
+ s.status='locked';s.closedAt=now();s.updatedAt=now();markDirty();saveState();
+ if(navigator.onLine&&S.settings.dropboxRefresh&&S.settings.autoSync)syncNow(true);
+ go('report/'+sid)}
+
+/* ============ JEGYZŐKÖNYV NÉZET + EXPORTOK ============ */
+function vReport(sid){const s=sess(sid);if(!s){go('home');return}
+ const c=cust(s.customerId);const st=sessStats(s);
+ const app=document.getElementById('app');
+ app.innerHTML=top('Jegyzőkönyv',esc(c.name)+' · '+fmtD(s.date),'home')+`
+ <div class="card"><div class="eyebrow">${esc(s.code)} · ${s.status==='locked'?'Lezárva':'Vázlat'}</div>
+  <h1 style="color:${s.result==='MEGFELELT'?'var(--green)':'var(--red)'}">${s.result||'—'}</h1>
+  <div class="mut">Következő felülvizsgálat: ${s.nextDate?fmtD(s.nextDate):'—'}</div>
+  <div class="stat"><span class="badge p">${st.p} piros</span><span class="badge s">${st.y} sárga</span>
+   <span class="badge z">${st.z} zöld</span></div></div>
+ <button class="btn primary" onclick="makePdf('${sid}')">📄 PDF jegyzőkönyv (nyomtatás / mentés)</button>
+ <button class="btn" onclick="makeXlsx('${sid}',false)">📊 Excel — ügyfélnek</button>
+ <button class="btn" onclick="makeXlsx('${sid}',true)">📊 Excel — belső (cikkszám, méret, mennyiség)</button>
+ <button class="btn" onclick="emailClient('${sid}')">✉️ E-mail az ügyfélnek</button>
+ <hr class="hr">
+ <button class="btn" onclick="go('session/${sid}')">Bejegyzések megtekintése</button>
+ <button class="btn" onclick="reopenSess('${sid}')">Újranyitás szerkesztésre</button>
+ <button class="btn" onclick="cloneSess('${sid}')">＋ Új vizsgálat ez alapján (jövő évi)</button>`;}
+function reopenSess(sid){if(!confirm('Újranyitod a lezárt jegyzőkönyvet? Az aláírások törlődnek, újra alá kell írni a lezáráskor.'))return;
+ const s=sess(sid);s.status='draft';s.signatures={};s.updatedAt=now();markDirty();go('session/'+sid)}
+function cloneSess(sid){const old=sess(sid);const c=cust(old.customerId);
+ const s={id:uid(),code:genCode(),customerId:c.id,date:new Date().toISOString().slice(0,10),
+  status:'draft',inspectorIds:[...old.inspectorIds],contactName:c.contact,
+  warehouses:c.warehouses.map(w=>({id:w.id,name:w.name})),whOk:{},
+  damages:[],signatures:{},createdAt:now(),updatedAt:now()};
+ S.sessions.push(s);markDirty();
+ alert('Új vizsgálat létrehozva a korábbi törzsadatokkal (raktárak, tárhelyek, gyártók). A sérüléseket üresen kezded.');
+ go('session/'+s.id)}
+function emailClient(sid){const s=sess(sid);const c=cust(s.customerId);
+ const body=encodeURIComponent(`Tisztelt ${c.contact||'Partnerünk'}!
+
+Mellékelten küldjük a ${fmtD(s.date)} napján elvégzett állványfelülvizsgálat jegyzőkönyvét (${s.code}).
+Az állványrendszerek állapota: ${s.result||''}.
+Következő felülvizsgálat legkésőbb: ${s.nextDate?fmtD(s.nextDate):''}
+
+Kérjük, a PDF és Excel fájlokat csatolja ehhez a levélhez (az alkalmazásból letöltve / megosztva).
+
+Üdvözlettel:
+${S.settings.company}`);
+ location.href=`mailto:${c.email||''}?subject=${encodeURIComponent('Állványfelülvizsgálati jegyzőkönyv — '+s.code)}&body=${body}`}
+
+/* --- Excel --- */
+function xRow(s,d){const m=d.matrix;const x=k=>m[k]?'x':'';
+ return[d.locationCode,d.row,d.level,manuName(d.manufacturerId),
+  x('talplemez'),x('labElso'),x('labHatso'),x('protektor'),x('keretCsere'),
+  x('gerElsoJav'),x('gerElsoCsere'),x('gerHatsoJav'),x('gerHatsoCsere'),
+  x('terheles'),x('biztszeg'),x('tulJav'),x('tulCsere'),
+  d.klass==='piros'?'x':'',d.klass==='sarga'?'x':'',d.klass==='zold'?'x':'',d.note]}
+function makeXlsx(sid,internal){const s=sess(sid);const c=cust(s.customerId);
+ const head=['Tárhely azonosító','Sor','Szint','Gyártó/típus','Talplemez/Talpcsavar',
+  'Állványláb Első','Állványláb Hátsó','Protektor','Keretösszekötő Csere',
+  'Tartógerenda Első Javítás','Tartógerenda Első Csere','Tartógerenda Hátsó Javítás','Tartógerenda Hátsó Csere',
+  'Terhelésjelző tábla','Biztosítószeg','Túltolásgátló Javítás','Túltolásgátló Csere',
+  'Piros','Sárga','Zöld','Megjegyzés'];
+ if(internal)head.push('Saját megjegyzés','Mennyiség','Méret (h×sz×m)');
+ const rows=[['Állványrendszer felülvizsgálati hibajegyzék'],
+  ['Megrendelő: '+c.name],['Felülvizsgálat dátuma: '+fmtD(s.date)],
+  ['Telephely: '+(c.address||'')],['Vizsgálatot végezte: '+S.settings.company+' — '+
+   S.inspectors.filter(i=>s.inspectorIds.includes(i.id)).map(i=>i.name).join(', ')],[],head];
+ for(const w of s.warehouses){const ds=s.damages.filter(d=>d.warehouseId===w.id);
+  const whRow=[w.name];for(let i=1;i<head.length;i++)whRow.push('');
+  if(!ds.length){whRow[head.length-(internal?4:1)]=s.whOk[w.id]?'Rendben!':'';}
+  rows.push(whRow);
+  for(const d of ds){const r=xRow(s,d);
+   if(internal)r.push(d.internalNote,d.qty,[d.sizeH,d.sizeW,d.sizeM].filter(Boolean).join(' × '));
+   rows.push(r)}}
+ const ws=XLSX.utils.aoa_to_sheet(rows);
+ ws['!cols']=head.map((h,i)=>({wch:i===0?22:(i>=head.length-(internal?4:1)?34:i<4?9:5)}));
+ const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Hibajegyzék');
+ const fname=`Felulvizsgalat_${s.date}_${c.name.replace(/[^\wÁÉÍÓÖŐÚÜŰáéíóöőúüű ]/g,'').replace(/ /g,'_')}${internal?'_BELSO':''}.xlsx`;
+ const out=XLSX.write(wb,{bookType:'xlsx',type:'array'});
+ shareOrDownload(new Blob([out],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}),fname)}
+async function shareOrDownload(blob,fname){const file=new File([blob],fname,{type:blob.type});
+ if(navigator.canShare&&navigator.canShare({files:[file]})){
+  try{await navigator.share({files:[file],title:fname});return}catch(e){if(e.name==='AbortError')return}}
+ const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=fname;a.click();
+ setTimeout(()=>URL.revokeObjectURL(a.href),5000)}
+
+/* --- PDF (nyomtatási nézet) --- */
+async function makePdf(sid){const s=sess(sid);const c=cust(s.customerId);const st=sessStats(s);
+ const T=S.settings.templates;const insp=S.inspectors.filter(i=>s.inspectorIds.includes(i.id)).map(i=>i.name).join(', ');
+ const vh=`<th class="vert">`;
+ let mx=`<table class="mx"><tr><th style="min-width:26mm">Tárhely azonosító</th><th>Sor</th><th>Szint</th><th>Gyártó</th>
+  ${vh}Talplemez / Talpcsavar</th>${vh}Állványláb Első</th>${vh}Állványláb Hátsó</th>${vh}Protektor</th>
+  ${vh}Keretösszekötő Csere</th>${vh}Gerenda Első Jav.</th>${vh}Gerenda Első Csere</th>
+  ${vh}Gerenda Hátsó Jav.</th>${vh}Gerenda Hátsó Csere</th>${vh}Terhelésjelző</th>${vh}Biztosítószeg</th>
+  ${vh}Túltolásg. Jav.</th>${vh}Túltolásg. Csere</th>
+  <th class="vert cP">Piros</th><th class="vert cS">Sárga</th><th class="vert cZ">Zöld</th>
+  <th style="min-width:34mm">Megjegyzés</th></tr>`;
+ for(const w of s.warehouses){const ds=s.damages.filter(d=>d.warehouseId===w.id);
+  mx+=`<tr class="${!ds.length&&s.whOk[w.id]?'whok':'wh'}"><td colspan="20">${esc(w.name)}</td>
+   <td class="l">${!ds.length&&s.whOk[w.id]?'Rendben!':''}</td></tr>`;
+  for(const d of ds){const m=d.matrix;const x=k=>m[k]?'x':'';
+   mx+=`<tr><td class="l">${esc(d.locationCode)}</td><td>${esc(d.row)}</td><td>${esc(d.level)}</td>
+    <td>${esc(manuName(d.manufacturerId))}</td>
+    <td>${x('talplemez')}</td><td>${x('labElso')}</td><td>${x('labHatso')}</td><td>${x('protektor')}</td>
+    <td>${x('keretCsere')}</td><td>${x('gerElsoJav')}</td><td>${x('gerElsoCsere')}</td>
+    <td>${x('gerHatsoJav')}</td><td>${x('gerHatsoCsere')}</td><td>${x('terheles')}</td><td>${x('biztszeg')}</td>
+    <td>${x('tulJav')}</td><td>${x('tulCsere')}</td>
+    <td class="${d.klass==='piros'?'cP':''}">${d.klass==='piros'?'x':''}</td>
+    <td class="${d.klass==='sarga'?'cS':''}">${d.klass==='sarga'?'x':''}</td>
+    <td class="${d.klass==='zold'?'cZ':''}">${d.klass==='zold'?'x':''}</td>
+    <td class="l">${esc(d.note)}</td></tr>`}}
+ mx+='</table>';
+ let photosHtml='';
+ for(const w of s.warehouses){for(const d of s.damages.filter(x=>x.warehouseId===w.id)){
+  for(const pid of d.photos){const p=await idb.get('photos',pid);
+   if(p)photosHtml+=`<div class="photo-item"><img src="${p.full}">
+    <div class="cap"><b>${esc(w.name)} — ${esc(d.locationCode)}</b> · ${esc(d.note||'')}</div></div>`}}}
+ const ph=`<div class="phead"><div class="plogo">RAKTÁR<span>SZERVIZ</span></div>
+  <div style="font-size:8pt;text-align:right">${esc(S.settings.company)}<br>${esc(S.settings.companyLine||'')}</div></div>`;
+ document.getElementById('printArea').innerHTML=`
+ <div class="pg">${ph}<h1>VIZSGÁLATI JEGYZŐKÖNYV</h1>
+  <p style="text-align:center;font-size:11pt"><b>a ${esc(c.name)}</b> raktárában felállított<br>
+  <b>raktári állványrendszerek</b><br>időszakos biztonsági felülvizsgálata az MSZ EN 15635 szabvány szerint.</p>
+  <p>A vizsgálatokat a <b>${esc(S.settings.company)}</b> végezte.</p>
+  <p><b>Résztvevők:</b><br>${esc(S.settings.company)}, mint kivitelező részéről: ${esc(insp)}<br>
+  ${esc(c.name)}, mint megbízó részéről: ${esc(s.signatures.clientName||s.contactName||c.contact||'')}</p>
+  <p><b>Felülvizsgálat helyszíne:</b> ${esc(c.address||'')}</p>
+  <p><b>A felülvizsgálat ideje:</b> ${fmtD(s.date)} · Jegyzőkönyv azonosító: ${esc(s.code)}</p>
+  <h2>A vizsgálat előzményei, módszertana</h2>
+  <p style="white-space:pre-line">${esc(T.modszertan)}</p></div>
+ <div class="pg">${ph}
+  <p class="catG" style="white-space:pre-line">${esc(T.zold)}</p>
+  <p class="catS" style="white-space:pre-line">${esc(T.sarga)}</p>
+  <p class="catP" style="white-space:pre-line">${esc(T.piros)}</p>
+  <p><b>${esc(T.figyelmeztetes)}</b></p><p>${esc(T.zaro)}</p>
+  <div class="verdict ${s.result==='MEGFELELT'?'good':'bad'}">Az állványrendszerek állapota:<br>${esc(s.result||'')}!</div>
+  <p style="text-align:center">az MSZ EN 15635 szabványban előírt követelményeknek${s.result==='MEGFELELT'?'':', a mellékelt hibajegyzékben feltüntetett tárhelyeken'}.</p>
+  <p style="text-align:center"><b>Következő állványrendszer felülvizsgálat legkésőbb: ${s.nextDate?fmtD(s.nextDate):''}</b></p>
+  <p style="text-align:center">Kelt: ${fmtD(s.closedAt||s.date)}</p>
+  <div class="sigrow">
+   <div>${s.signatures.inspector?`<img src="${s.signatures.inspector}">`:''}<div class="ln">Vizsgálatot végző<br>${esc(insp)}</div></div>
+   <div>${s.signatures.client?`<img src="${s.signatures.client}">`:''}<div class="ln">Megbízó képviselője<br>${esc(s.signatures.clientName||'')}</div></div></div></div>
+ <div class="pg">${ph}<h2>Állványrendszer felülvizsgálati hibajegyzék</h2>
+  <p style="font-size:8pt">Megrendelő: ${esc(c.name)} · Dátum: ${fmtD(s.date)} · Telephely: ${esc(c.address||'')}</p>${mx}</div>
+ ${photosHtml?`<div class="pg">${ph}<h2>Fotómelléklet</h2>${photosHtml}</div>`:''}`;
+ setTimeout(()=>window.print(),150)}
+
+/* ============ ARCHÍVUM ============ */
+function vArchive(){const app=document.getElementById('app');
+ const list=[...S.sessions].sort((a,b)=>b.createdAt-a.createdAt);
+ app.innerHTML=top('Korábbi jegyzőkönyvek','','home')+
+ (list.length?list.map(s=>{const c=cust(s.customerId);const st=sessStats(s);
+  return `<div class="card tappable" onclick="go('${s.status==='locked'?'report':'session'}/${s.id}')">
+   <div class="eyebrow">${esc(s.code)} · ${s.status==='locked'?'Lezárt':'Folyamatban'}</div>
+   <h2 style="margin:2px 0">${esc(c?c.name:'?')}</h2>
+   <div class="mut small">${fmtD(s.date)} ${s.result?'· '+s.result:''}</div>
+   <div class="stat"><span class="badge p">${st.p}</span><span class="badge s">${st.y}</span>
+    <span class="badge z">${st.z}</span></div></div>`}).join('')
+ :'<div class="mut center" style="margin-top:40px">Még nincs jegyzőkönyv.</div>')}
+
+/* ============ BEÁLLÍTÁSOK ============ */
+function vSettings(){const app=document.getElementById('app');
+ app.innerHTML=top('Beállítások','Törzsadatok · Szinkron · Mentés','home')+`
+ <div class="card"><div class="eyebrow">Vizsgálók</div><div id="set_insp">
+  ${S.inspectors.map(i=>`<div class="list-item"><div class="grow">${esc(i.name)}</div>
+   <button class="btn small ghost" onclick="renInsp('${i.id}')">Átnevez</button>
+   <button class="btn small danger" onclick="delInsp('${i.id}')">Töröl</button></div>`).join('')||'<div class="mut small">Nincs vizsgáló.</div>'}</div>
+  <button class="btn small" onclick="addInspector();vSettings()">＋ Vizsgáló</button></div>
+ <div class="card"><div class="eyebrow">Gyártók (gyakoriság szerint)</div>
+  ${sortedManus().map(m=>`<div class="list-item"><div class="grow">${esc(m.name)}
+   <span class="mut small">(${m.count||0}×)</span></div>
+   <button class="btn small danger" onclick="delManu('${m.id}')">Töröl</button></div>`).join('')}
+  <button class="btn small" onclick="const n=prompt('Gyártó neve:');if(n){S.manufacturers.push({id:uid(),name:n.trim(),count:0,updatedAt:now()});markDirty();vSettings()}">＋ Gyártó</button></div>
+ <div class="card"><div class="eyebrow">Megjegyzés-sablonok</div>
+  ${S.settings.noteTemplates.map((t,i)=>`<div class="list-item"><div class="grow small">${esc(t)}</div>
+   <button class="btn small danger" onclick="S.settings.noteTemplates.splice(${i},1);S.settings.updatedAt=now();markDirty();vSettings()">✕</button></div>`).join('')}
+  <button class="btn small" onclick="const n=prompt('Új sablon-szöveg:');if(n){S.settings.noteTemplates.push(n.trim());S.settings.updatedAt=now();markDirty();vSettings()}">＋ Sablon</button></div>
+ <div class="card"><div class="eyebrow">Dropbox szinkronizáció</div>
+  ${S.settings.dropboxRefresh?
+   `<div class="small" style="color:var(--green)">✓ Kapcsolódva ${S.lastSync?'· utolsó szinkron: '+new Date(S.lastSync).toLocaleString('hu'):''}</div>
+    <label style="display:flex;gap:8px;align-items:center;margin:10px 0">
+     <input type="checkbox" style="width:20px;height:20px" ${S.settings.autoSync?'checked':''}
+      onchange="S.settings.autoSync=this.checked;S.settings.updatedAt=now();markDirty()"> Automatikus szinkron, ha van internet</label>
+    <button class="btn" onclick="syncNow()">🔄 Szinkronizálás most</button>
+    <button class="btn danger" onclick="S.settings.dropboxRefresh='';S.settings.updatedAt=now();markDirty();vSettings()">Kapcsolat bontása</button>`
+  :`<div class="mut small">Add meg a Dropbox alkalmazás App key-ét (lásd a telepítési útmutatót), majd kapcsolódj. Az adatok a saját Dropbox fiókotokba kerülnek.</div>
+    <label class="fld">Dropbox App key</label>
+    <input type="text" id="dbxkey" value="${esc(S.settings.dropboxKey)}" placeholder="pl. a1b2c3d4e5f6g7h">
+    <button class="btn primary" onclick="dbxConnect()">Dropbox összekapcsolása</button>`}</div>
+ <div class="card"><div class="eyebrow">Biztonsági mentés (fájlba)</div>
+  <button class="btn" onclick="backupExport()">⬇ Teljes mentés letöltése (JSON)</button>
+  <input type="file" id="bkfile" accept=".json" style="display:none" onchange="backupImport(this)">
+  <button class="btn" onclick="document.getElementById('bkfile').click()">⬆ Mentés visszatöltése</button></div>
+ <div class="card"><div class="eyebrow">Cégadatok (PDF fejlécbe)</div>
+  <label class="fld">Cégnév</label><input type="text" value="${esc(S.settings.company)}"
+   oninput="S.settings.company=this.value;S.settings.updatedAt=now();markDirty()">
+  <label class="fld">Cím / elérhetőség sor</label><input type="text" value="${esc(S.settings.companyLine||'')}"
+   oninput="S.settings.companyLine=this.value;S.settings.updatedAt=now();markDirty()"></div>`;}
+function renInsp(id){const i=S.inspectors.find(x=>x.id===id);const n=prompt('Név:',i.name);
+ if(n){i.name=n.trim();i.updatedAt=now();markDirty();vSettings()}}
+function delInsp(id){if(!confirm('Törlöd a vizsgálót?'))return;
+ S.inspectors=S.inspectors.filter(x=>x.id!==id);markDirty();vSettings()}
+function delManu(id){if(!confirm('Törlöd a gyártót?'))return;
+ S.manufacturers=S.manufacturers.filter(x=>x.id!==id);markDirty();vSettings()}
+
+/* ============ BIZTONSÁGI MENTÉS ============ */
+async function backupExport(){const photos={};
+ for(const k of await idb.keys('photos'))photos[k]=await idb.get('photos',k);
+ const blob=new Blob([JSON.stringify({state:S,photos})],{type:'application/json'});
+ shareOrDownload(blob,'raktarszerviz_mentes_'+new Date().toISOString().slice(0,10)+'.json')}
+function backupImport(inp){const f=inp.files[0];if(!f)return;inp.value='';
+ if(!confirm('A visszatöltés FELÜLÍRJA a jelenlegi adatokat. Folytatod?'))return;
+ const r=new FileReader();r.onload=async()=>{try{const d=JSON.parse(r.result);
+  S=d.state;for(const k in d.photos)await idb.set('photos',k,d.photos[k]);
+  await saveState();alert('Visszatöltve.');render()}catch(e){alert('Hibás mentésfájl: '+e)}};
+ r.readAsText(f)}
+
+/* ============ DROPBOX SZINKRON (PKCE OAuth, SDK nélkül) ============ */
+function b64url(buf){return btoa(String.fromCharCode(...new Uint8Array(buf)))
+ .replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'')}
+async function dbxConnect(){const key=document.getElementById('dbxkey').value.trim();
+ if(!key){alert('Add meg az App key-t.');return}
+ S.settings.dropboxKey=key;S.settings.updatedAt=now();await saveState();
+ const verifier=b64url(crypto.getRandomValues(new Uint8Array(48)));
+ sessionStorage.dbxV=verifier;
+ const challenge=b64url(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(verifier)));
+ const redirect=location.origin+location.pathname;
+ location.href='https://www.dropbox.com/oauth2/authorize?client_id='+key+
+  '&response_type=code&code_challenge='+challenge+'&code_challenge_method=S256'+
+  '&token_access_type=offline&redirect_uri='+encodeURIComponent(redirect)}
+async function dbxHandleRedirect(){const p=new URLSearchParams(location.search);
+ const code=p.get('code');if(!code)return;
+ history.replaceState(null,'',location.pathname);
+ try{const r=await fetch('https://api.dropboxapi.com/oauth2/token',{method:'POST',
+  headers:{'Content-Type':'application/x-www-form-urlencoded'},
+  body:new URLSearchParams({code,grant_type:'authorization_code',
+   client_id:S.settings.dropboxKey,code_verifier:sessionStorage.dbxV||'',
+   redirect_uri:location.origin+location.pathname})});
+  const j=await r.json();
+  if(j.refresh_token){S.settings.dropboxRefresh=j.refresh_token;S.settings.updatedAt=now();
+   await saveState();alert('Dropbox sikeresen összekapcsolva! ✓');syncNow(true)}
+  else alert('Dropbox hiba: '+JSON.stringify(j))}catch(e){alert('Dropbox kapcsolódási hiba: '+e)}}
+let dbxToken=null,dbxTokenExp=0;
+async function dbxAccess(){if(dbxToken&&Date.now()<dbxTokenExp)return dbxToken;
+ const r=await fetch('https://api.dropboxapi.com/oauth2/token',{method:'POST',
+  headers:{'Content-Type':'application/x-www-form-urlencoded'},
+  body:new URLSearchParams({grant_type:'refresh_token',
+   refresh_token:S.settings.dropboxRefresh,client_id:S.settings.dropboxKey})});
+ const j=await r.json();if(!j.access_token)throw new Error('token');
+ dbxToken=j.access_token;dbxTokenExp=Date.now()+(j.expires_in-60)*1000;return dbxToken}
+async function dbxUpload(path,content){const t=await dbxAccess();
+ return fetch('https://content.dropboxapi.com/2/files/upload',{method:'POST',
+  headers:{'Authorization':'Bearer '+t,'Content-Type':'application/octet-stream',
+   'Dropbox-API-Arg':JSON.stringify({path,mode:'overwrite',mute:true})},body:content})}
+async function dbxDownload(path){const t=await dbxAccess();
+ const r=await fetch('https://content.dropboxapi.com/2/files/download',{method:'POST',
+  headers:{'Authorization':'Bearer '+t,'Dropbox-API-Arg':JSON.stringify({path})}});
+ if(!r.ok)return null;return r.text()}
+async function dbxList(path){const t=await dbxAccess();
+ const r=await fetch('https://api.dropboxapi.com/2/files/list_folder',{method:'POST',
+  headers:{'Authorization':'Bearer '+t,'Content-Type':'application/json'},
+  body:JSON.stringify({path})});
+ if(!r.ok)return[];const j=await r.json();return(j.entries||[]).map(e=>e.name)}
+function mergeById(local,remote){const map=new Map(local.map(o=>[o.id,o]));
+ for(const r of remote){const l=map.get(r.id);
+  if(!l||((r.updatedAt||0)>(l.updatedAt||0)))map.set(r.id,r)}
+ return[...map.values()]}
+let syncing=false;
+async function syncNow(silent){if(syncing||!S.settings.dropboxRefresh)return;
+ if(!navigator.onLine){if(!silent)alert('Nincs internetkapcsolat. A szinkron a következő online állapotban lefut.');return}
+ syncing=true;const chip=document.getElementById('syncchip');if(chip)chip.textContent='szinkron…';
+ try{
+  const remoteTxt=await dbxDownload('/adatok.json');
+  if(remoteTxt){try{const R=JSON.parse(remoteTxt);
+   S.inspectors=mergeById(S.inspectors,R.inspectors||[]);
+   S.manufacturers=mergeById(S.manufacturers,R.manufacturers||[]);
+   S.customers=mergeById(S.customers,R.customers||[]);
+   S.sessions=mergeById(S.sessions,R.sessions||[]);
+   if(R.settings&&(R.settings.updatedAt||0)>(S.settings.updatedAt||0)){
+    const keep={dropboxKey:S.settings.dropboxKey,dropboxRefresh:S.settings.dropboxRefresh};
+    S.settings={...R.settings,...keep}}}catch(e){}}
+  await dbxUpload('/adatok.json',JSON.stringify(S));
+  const remotePhotos=new Set(await dbxList('/fotok').catch(()=>[]));
+  const localKeys=await idb.keys('photos');
+  for(const k of localKeys){if(!remotePhotos.has(k+'.json')){
+   const p=await idb.get('photos',k);
+   await dbxUpload('/fotok/'+k+'.json',JSON.stringify(p))}}
+  const needed=new Set();for(const s of S.sessions)for(const d of s.damages)for(const p of d.photos)needed.add(p);
+  for(const k of needed){if(!localKeys.includes(k)&&remotePhotos.has(k+'.json')){
+   const txt=await dbxDownload('/fotok/'+k+'.json');
+   if(txt)await idb.set('photos',k,JSON.parse(txt))}}
+  S.lastSync=now();await saveState();
+  if(!silent)alert('Szinkronizálás kész ✓');
+ }catch(e){if(!silent)alert('Szinkron hiba: '+e)}
+ syncing=false;if(chip)chip.textContent=navigator.onLine?'online':'offline';
+ if((location.hash.slice(1)||'home')==='home')render()}
+window.addEventListener('online',()=>{if(S&&S.settings.autoSync&&S.settings.dropboxRefresh)syncNow(true);
+ const c=document.getElementById('syncchip');if(c)c.textContent='online'});
+window.addEventListener('offline',()=>{const c=document.getElementById('syncchip');if(c)c.textContent='offline'});
+setInterval(()=>{if(S&&navigator.onLine&&S.settings.autoSync&&S.settings.dropboxRefresh)syncNow(true)},5*60000);
+
+/* ============ INDÍTÁS ============ */
+(async function(){await idb.open();await loadState();
+ await dbxHandleRedirect();
+ if('serviceWorker'in navigator){try{navigator.serviceWorker.register('sw.js')}catch(e){}}
+ render()})();
+</script>
+</body>
+</html>
