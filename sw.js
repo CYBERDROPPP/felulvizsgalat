@@ -1,5 +1,5 @@
 /* Raktárszerviz app — offline gyorsítótár */
-const VER = 'rsz-v2';
+const VER = 'rsz-v3';
 const CORE = [
   './index.html',
   './manifest.json',

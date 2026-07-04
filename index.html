@@ -249,7 +249,7 @@ function render(){const h=location.hash.slice(1)||'home';const[r,a,b]=h.split('/
  const R={home:vHome,new:vNew,session:()=>vSession(a),wh:()=>vWh(a,b),dmg:()=>vDmg(a,b),
   close:()=>vClose(a),report:()=>vReport(a),archive:vArchive,settings:vSettings};
  (R[r]||vHome)();window.scrollTo(0,0)}
-function top(title,sub,backHash){return `<div class="topbar">
+function hdr(title,sub,backHash){return `<div class="topbar">
  ${backHash!==undefined?`<button class="back" onclick="go('${backHash}')">‹</button>`:''}
  <div class="ttl"><h1>${title}</h1>${sub?`<div class="sub">${sub}</div>`:''}</div></div>`}
 
@@ -280,7 +280,7 @@ let W={};
 function vNew(){W={customerId:'',name:'',address:'',contact:'',email:'',phone:'',
  inspectorIds:[],date:new Date().toISOString().slice(0,10)};
  const app=document.getElementById('app');
- app.innerHTML=top('Új felülvizsgálat','1/2 — Ügyfél és helyszín','home')+`
+ app.innerHTML=hdr('Új felülvizsgálat','1/2 — Ügyfél és helyszín','home')+`
  ${S.customers.length?`<label class="fld">Korábbi ügyfél kiválasztása</label>
  <select onchange="wPickCust(this.value)"><option value="">— Új ügyfél felvétele —</option>
   ${S.customers.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('')}</select>`:''}
@@ -335,7 +335,7 @@ function wCreate(){const name=document.getElementById('w_name').value.trim();
 function vSession(id){const s=sess(id);if(!s){go('home');return}
  const c=cust(s.customerId);const st=sessStats(s);const locked=s.status==='locked';
  const app=document.getElementById('app');
- app.innerHTML=top(esc(c.name),fmtD(s.date)+' · '+esc(s.code)+(locked?' · LEZÁRT':''),'home')+`
+ app.innerHTML=hdr(esc(c.name),fmtD(s.date)+' · '+esc(s.code)+(locked?' · LEZÁRT':''),'home')+`
  <div class="stat">
   <span class="badge p">${st.p} piros</span><span class="badge s">${st.y} sárga</span>
   <span class="badge z">${st.z} zöld</span><span class="badge grey">${s.damages.length} bejegyzés</span></div>
@@ -369,7 +369,7 @@ function vWh(sid,wid){const s=sess(sid);if(!s){go('home');return}
  const w=s.warehouses.find(x=>x.id===wid);const locked=s.status==='locked';
  const ds=s.damages.filter(d=>d.warehouseId===wid);
  const app=document.getElementById('app');
- app.innerHTML=top(esc(w.name),esc(cust(s.customerId).name),'session/'+sid)+`
+ app.innerHTML=hdr(esc(w.name),esc(cust(s.customerId).name),'session/'+sid)+`
  ${ds.length===0?`<div class="card"><label style="display:flex;align-items:center;gap:10px">
   <input type="checkbox" style="width:22px;height:22px" ${s.whOk[wid]?'checked':''}
    ${locked?'disabled':''} onchange="togWhOk('${sid}','${wid}',this.checked)">
@@ -403,7 +403,7 @@ function vDmg(sid,did){const s=sess(sid);if(!s){go('home');return}
  const w=s.warehouses.find(x=>x.id===d.warehouseId);
  const knownLocs=c.locations.filter(l=>l.warehouseId===d.warehouseId);
  const app=document.getElementById('app');const dis=locked?'disabled':'';
- app.innerHTML=top('Sérülés rögzítése',esc(w.name)+' · '+esc(c.name),'wh/'+sid+'/'+d.warehouseId)+`
+ app.innerHTML=hdr('Sérülés rögzítése',esc(w.name)+' · '+esc(c.name),'wh/'+sid+'/'+d.warehouseId)+`
  <label class="fld">Tárhely azonosító *</label>
  <div class="row"><input type="text" id="d_code" value="${esc(d.locationCode)}" ${dis}
    list="loclist" oninput="dSet('${sid}','${did}','locationCode',this.value);dLocHint('${sid}','${did}',this.value)">
@@ -537,7 +537,7 @@ function vClose(sid){const s=sess(sid);if(!s){go('home');return}
  const next=new Date(s.date);next.setFullYear(next.getFullYear()+1);
  const missing=s.damages.filter(d=>!d.locationCode||!d.klass).length;
  const app=document.getElementById('app');
- app.innerHTML=top('Lezárás',esc(c.name)+' · '+fmtD(s.date),'session/'+sid)+`
+ app.innerHTML=hdr('Lezárás',esc(c.name)+' · '+fmtD(s.date),'session/'+sid)+`
  <div class="card"><div class="eyebrow">Összesítés</div>
   <div class="stat"><span class="badge p">${st.p} piros</span><span class="badge s">${st.y} sárga</span>
   <span class="badge z">${st.z} zöld</span><span class="badge grey">${s.damages.length} bejegyzés · ${s.warehouses.length} raktár</span></div>
@@ -586,7 +586,7 @@ function doClose(sid){const s=sess(sid);
 function vReport(sid){const s=sess(sid);if(!s){go('home');return}
  const c=cust(s.customerId);const st=sessStats(s);
  const app=document.getElementById('app');
- app.innerHTML=top('Jegyzőkönyv',esc(c.name)+' · '+fmtD(s.date),'home')+`
+ app.innerHTML=hdr('Jegyzőkönyv',esc(c.name)+' · '+fmtD(s.date),'home')+`
  <div class="card"><div class="eyebrow">${esc(s.code)} · ${s.status==='locked'?'Lezárva':'Vázlat'}</div>
   <h1 style="color:${s.result==='MEGFELELT'?'var(--green)':'var(--red)'}">${s.result||'—'}</h1>
   <div class="mut">Következő felülvizsgálat: ${s.nextDate?fmtD(s.nextDate):'—'}</div>
@@ -724,7 +724,7 @@ async function makePdf(sid){const s=sess(sid);const c=cust(s.customerId);const s
 /* ============ ARCHÍVUM ============ */
 function vArchive(){const app=document.getElementById('app');
  const list=[...S.sessions].sort((a,b)=>b.createdAt-a.createdAt);
- app.innerHTML=top('Korábbi jegyzőkönyvek','','home')+
+ app.innerHTML=hdr('Korábbi jegyzőkönyvek','','home')+
  (list.length?list.map(s=>{const c=cust(s.customerId);const st=sessStats(s);
   return `<div class="card tappable" onclick="go('${s.status==='locked'?'report':'session'}/${s.id}')">
    <div class="eyebrow">${esc(s.code)} · ${s.status==='locked'?'Lezárt':'Folyamatban'}</div>
@@ -736,7 +736,7 @@ function vArchive(){const app=document.getElementById('app');
 
 /* ============ BEÁLLÍTÁSOK ============ */
 function vSettings(){const app=document.getElementById('app');
- app.innerHTML=top('Beállítások','Törzsadatok · Szinkron · Mentés','home')+`
+ app.innerHTML=hdr('Beállítások','Törzsadatok · Szinkron · Mentés','home')+`
  <div class="card"><div class="eyebrow">Vizsgálók</div><div id="set_insp">
   ${S.inspectors.map(i=>`<div class="list-item"><div class="grow">${esc(i.name)}</div>
    <button class="btn small ghost" onclick="renInsp('${i.id}')">Átnevez</button>
