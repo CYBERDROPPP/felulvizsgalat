@@ -6,8 +6,16 @@
 <meta name="theme-color" content="#0F1216">
 <title>Raktárszerviz — Állványfelülvizsgálat</title>
 <link rel="manifest" href="manifest.json">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+<script>
+window.onerror=function(msg,src,line){try{var d=document.getElementById('errbox');
+if(!d){d=document.createElement('div');d.id='errbox';
+d.style.cssText='position:fixed;top:0;left:0;right:0;z-index:9999;background:#B3261E;color:#fff;padding:12px;font:13px/1.4 monospace;white-space:pre-wrap';
+(document.body||document.documentElement).appendChild(d);}
+d.textContent='HIBA (fotózd le és küldd el): '+msg+'\n'+(src||'')+' — sor: '+line;}catch(e){}return false};
+window.addEventListener('unhandledrejection',function(e){window.onerror(String((e.reason&&e.reason.stack)||e.reason)||'ismeretlen','promise',0)});
+</script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
 <style>
 :root{
   --bg:#0F1216; --surface:#171C22; --surface2:#1F252D; --line:#2B333D;
@@ -137,7 +145,11 @@ a{color:var(--brand)}
 </head>
 <body>
 <div class="savebar" id="savebar">Mentve ✓</div>
-<div id="app"></div>
+<div id="app"><div style="padding:60px 20px;text-align:center;color:#93A0AC">
+<div style="font-weight:900;font-size:1.4rem;letter-spacing:.06em;color:#E9EDF1">RAKTÁR<span style="color:#FFB020">SZERVIZ</span></div>
+<p>Betöltés…</p>
+<p style="font-size:.8rem">Ha ez a felirat nem tűnik el pár másodperc alatt,<br>fotózd le a képernyőt a piros hibaüzenettel együtt.</p>
+</div></div>
 <div id="modals"></div>
 <div id="printArea"></div>
 <script>
@@ -161,7 +173,7 @@ const idb={db:null,
 let S=null; let dirty=false; let saveTimer=null;
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
 const now=()=>Date.now();
-const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fmtD=d=>{const x=new Date(d);return x.getFullYear()+'.'+String(x.getMonth()+1).padStart(2,'0')+'.'+String(x.getDate()).padStart(2,'0')+'.'};
 
 const DEFAULT_TEMPLATES={
@@ -864,10 +876,24 @@ window.addEventListener('offline',()=>{const c=document.getElementById('syncchip
 setInterval(()=>{if(S&&navigator.onLine&&S.settings.autoSync&&S.settings.dropboxRefresh)syncNow(true)},5*60000);
 
 /* ============ INDÍTÁS ============ */
-(async function(){await idb.open();await loadState();
- await dbxHandleRedirect();
- if('serviceWorker'in navigator){try{navigator.serviceWorker.register('sw.js')}catch(e){}}
- render()})();
+function idbFallback(){const mem={kv:new Map(),photos:new Map()};
+ idb.get=(st,k)=>Promise.resolve(mem[st].get(k));
+ idb.set=(st,k,v)=>{mem[st].set(k,v);return Promise.resolve()};
+ idb.del=(st,k)=>{mem[st].delete(k);return Promise.resolve()};
+ idb.keys=st=>Promise.resolve([...mem[st].keys()]);
+ setTimeout(()=>{const b=document.createElement('div');
+  b.style.cssText='position:fixed;bottom:0;left:0;right:0;z-index:999;background:#7A5900;color:#fff;padding:8px 12px;font-size:12px;text-align:center';
+  b.textContent='Figyelem: az adattárolás nem érhető el ezen a böngészőn (privát/inkognitó mód?). Az adatok bezáráskor elvesznek!';
+  document.body.appendChild(b)},500)}
+(async function(){
+ try{await Promise.race([idb.open(),new Promise((_,rej)=>setTimeout(()=>rej(new Error('IndexedDB időtúllépés')),4000))])}
+ catch(e){idbFallback()}
+ try{await loadState()}catch(e){S=freshState()}
+ try{await dbxHandleRedirect()}catch(e){}
+ if('serviceWorker'in navigator){try{navigator.serviceWorker.register('sw.js').catch(()=>{})}catch(e){}}
+ render()
+})().catch(e=>{window.onerror((e&&e.stack)||String(e),'inditas',0);
+ try{if(!S)S=freshState();render()}catch(_){}});
 </script>
 </body>
 </html>

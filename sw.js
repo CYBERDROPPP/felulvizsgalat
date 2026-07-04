@@ -1,5 +1,5 @@
 /* Raktárszerviz app — offline gyorsítótár */
-const VER = 'rsz-v1';
+const VER = 'rsz-v2';
 const CORE = [
   './index.html',
   './manifest.json',
@@ -12,7 +12,7 @@ const CORE = [
 self.addEventListener('install', e => {
   e.waitUntil(
     caches.open(VER).then(c =>
-      Promise.allSettled(CORE.map(u => c.add(u)))
+      Promise.all(CORE.map(u => c.add(u).catch(() => {})))
     ).then(() => self.skipWaiting())
   );
 });
