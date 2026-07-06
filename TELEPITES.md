@@ -14,11 +14,13 @@ rögzítéséhez. Telefonon működik, **internet nélkül is** — minden adat 
 | `manifest.json` | Telefonra telepítéshez (kezdőképernyő ikon) |
 | `sw.js` | Offline működés (gyorsítótár) |
 | `icon-192.png`, `icon-512.png` | Alkalmazás-ikonok |
+| `template_rsz.docx` | Raktárszerviz fedlap-sablon (logóval, fejléccel-lábléccel) |
+| `template_jh.docx` | Jungheinrich fedlap-sablon (logóval, fejléccel-lábléccel) |
 
 ## 1. Feltöltés GitHub Pages-re (ugyanúgy, mint a korábbi próbálkozásnál)
 
 1. GitHub-on hozzatok létre egy repository-t (vagy használjátok a meglévő `felulvizsgalat` repót).
-2. Töltsétek fel **mind az 5 fájlt** a repó gyökerébe (a meglévő fájlokat felülírva).
+2. Töltsétek fel **mind a 8 fájlt** a repó gyökerébe (a meglévő fájlokat felülírva).
 3. Settings → Pages → Source: `main` branch → Save.
 4. Az app elérhető lesz: `https://<felhasznalonev>.github.io/<repo>/index.html`
 
@@ -57,9 +59,15 @@ kapcsolódtok, **ugyanazt az adatbázist látja** (jegyzőkönyvek, fotók, tör
 
 ## 4. Bejelentkezés és felhasználók
 
-- **Első indításkor** az app admin fiók létrehozását kéri (név, felhasználónév, jelszó).
-  Ha másik eszközön már használjátok, ehelyett a „Dropbox összekapcsolása és visszaállítás"
-  gombbal töltsd le a meglévő fiókokat, majd lépj be a sajátoddal.
+- **Első indításkor** (a legelső eszközön) az app admin fiók létrehozását kéri.
+- **FONTOS — hogy más eszköz már ne kérjen regisztrációt:** az admin a
+  Beállítások → Felhasználók → „⬇ fiokok.json letöltése" gombbal letölti a fiók-fájlt,
+  és feltölti a GitHub repóba a többi fájl mellé. Ezután **bármely új eszköz** megnyitáskor
+  automatikusan betölti a fiókokat, és rögtön a bejelentkezést kéri.
+  Ugyanezt ismételd meg minden új felhasználó felvétele vagy jelszóváltás után.
+- A fiokok.json a jelszavakat CSAK visszafejthetetlen formában (sózott PBKDF2 hash,
+  60 000 iteráció) tartalmazza — a fájlból vagy a forráskódból a jelszó nem olvasható ki.
+  Ettől függetlenül használjatok rendes, nem tippelhető jelszavakat.
 - **Az admin** a Beállítások → Felhasználók alatt vesz fel új vizsgálókat (név, felhasználónév,
   e-mail, jelszó, aláírás). Jelszót csak az admin tud állítani / visszaállítani.
 - **Az aláírást** az admin egyszer felveszi a felhasználónál — lezáráskor automatikusan
@@ -69,7 +77,16 @@ kapcsolódtok, **ugyanazt az adatbázist látja** (jegyzőkönyvek, fotók, tör
   (`Apps/<appnév>/felhasznalok/<mappanév>/`); a közös törzsadatok (ügyfelek, gyártók,
   sablonok, fiókok) a `kozos.json`-ban vannak.
 
-## 5. Napi használat
+## 5. Kinek a nevében készül a jegyzőkönyv?
+
+Új vizsgálat indításakor az első kérdés: **Raktárszerviz** vagy **Jungheinrich**.
+- Jungheinrich választása esetén a PDF, a Word-fedlap és minden ügyfélnek szánt
+  kimenet a Jungheinrich arculatával készül — Raktárszervizre utaló jel nélkül.
+- A Word-fedlap a feltöltött eredeti sablonokból készül (logó, fejléc, lábléc érintetlen),
+  az app csak a jelölt helyeket tölti ki (ügyfél, dátum, gyártók, raktárak, állapot stb.).
+- A hibajegyzék-táblázat cégsemleges, egységes formátumú.
+
+## 6. Napi használat
 
 1. **Új felülvizsgálat indítása** → ügyfél (korábbiból választható — ilyenkor a raktárak,
    tárhelyek, gyártók emlékezetből előtöltődnek), kapcsolattartó, vizsgáló(k).
@@ -86,7 +103,7 @@ kapcsolódtok, **ugyanazt az adatbázist látja** (jegyzőkönyvek, fotók, tör
    - Excel ügyfélnek / Excel belső: valódi .xlsx fájl, megosztható közvetlenül (Gmail, Drive stb.).
    - E-mail gomb: előre megírt levelet nyit a kapcsolattartó címére.
 
-## 6. Biztonsági mentés
+## 7. Biztonsági mentés
 
 Dropbox nélkül is: Beállítások → „Teljes mentés letöltése (JSON)” — ez mindent tartalmaz
 (fotókkal együtt), és bármely eszközön visszatölthető.
