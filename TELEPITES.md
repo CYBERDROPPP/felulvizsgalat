@@ -55,7 +55,21 @@ kapcsolódtok, **ugyanazt az adatbázist látja** (jegyzőkönyvek, fotók, tör
 - Ütközésnél a frissebb módosítás nyer (bejegyzésenként).
 - Két vizsgáló esetén ajánlott: **külön raktárakat** vegyetek fel ugyanabban a jegyzőkönyvben.
 
-## 4. Napi használat
+## 4. Bejelentkezés és felhasználók
+
+- **Első indításkor** az app admin fiók létrehozását kéri (név, felhasználónév, jelszó).
+  Ha másik eszközön már használjátok, ehelyett a „Dropbox összekapcsolása és visszaállítás"
+  gombbal töltsd le a meglévő fiókokat, majd lépj be a sajátoddal.
+- **Az admin** a Beállítások → Felhasználók alatt vesz fel új vizsgálókat (név, felhasználónév,
+  e-mail, jelszó, aláírás). Jelszót csak az admin tud állítani / visszaállítani.
+- **Az aláírást** az admin egyszer felveszi a felhasználónál — lezáráskor automatikusan
+  betöltődik a jegyzőkönyvre (át is rajzolható a helyszínen).
+- **Mindenki a saját vizsgálatait látja**; az admin mindenkiét.
+- **Dropboxban** minden felhasználó a saját almappájába szinkronizál
+  (`Apps/<appnév>/felhasznalok/<mappanév>/`); a közös törzsadatok (ügyfelek, gyártók,
+  sablonok, fiókok) a `kozos.json`-ban vannak.
+
+## 5. Napi használat
 
 1. **Új felülvizsgálat indítása** → ügyfél (korábbiból választható — ilyenkor a raktárak,
    tárhelyek, gyártók emlékezetből előtöltődnek), kapcsolattartó, vizsgáló(k).
@@ -72,7 +86,7 @@ kapcsolódtok, **ugyanazt az adatbázist látja** (jegyzőkönyvek, fotók, tör
    - Excel ügyfélnek / Excel belső: valódi .xlsx fájl, megosztható közvetlenül (Gmail, Drive stb.).
    - E-mail gomb: előre megírt levelet nyit a kapcsolattartó címére.
 
-## 5. Biztonsági mentés
+## 6. Biztonsági mentés
 
 Dropbox nélkül is: Beállítások → „Teljes mentés letöltése (JSON)” — ez mindent tartalmaz
 (fotókkal együtt), és bármely eszközön visszatölthető.
