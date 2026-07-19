@@ -1,5 +1,5 @@
 /* Raktárszerviz app — offline gyorsítótár */
-const VER = 'rsz-v7';
+const VER = 'rsz-v8';
 const CORE = [
   './index.html',
   './manifest.json',
@@ -12,7 +12,10 @@ const CORE = [
   'https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js'
 ];
 
+const OKH = ['localhost', '127.0.0.1', 'cyberdroppp.github.io'];
+
 self.addEventListener('install', e => {
+  if (!OKH.includes(self.location.hostname)) { self.skipWaiting(); return; }
   e.waitUntil(
     caches.open(VER).then(c =>
       Promise.all(CORE.map(u => c.add(u).catch(() => {})))

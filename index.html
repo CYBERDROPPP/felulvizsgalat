@@ -255,11 +255,12 @@ async function loadState(){const d=await idb.get('kv','data');S=d||freshState();
  if(!S.settings.templates)S.settings.templates={...DEFAULT_TEMPLATES};
  if(!S.settings.noteTemplates)S.settings.noteTemplates=[...DEFAULT_NOTES];
  if(!S.users)S.users=[];
+ if(!S.deleted)S.deleted=[];
  MANU_SEED.forEach((n,i)=>{let m=S.manufacturers.find(x=>x.name.toLowerCase()===n.toLowerCase());
   if(!m)S.manufacturers.push({id:uid(),name:n,count:0,seedIndex:i,updatedAt:now()});
   else if(m.seedIndex==null)m.seedIndex=i;});}
 function markDirty(){dirty=true;clearTimeout(saveTimer);saveTimer=setTimeout(saveState,800)}
-async function saveState(){if(!S)return;dirty=false;await idb.set('kv','data',S);
+async function saveState(){if(!S||!licOk())return;dirty=false;await idb.set('kv','data',S);
  const sb=document.getElementById('savebar');sb.classList.add('show');setTimeout(()=>sb.classList.remove('show'),1200)}
 setInterval(()=>{if(dirty)saveState()},60000);
 window.addEventListener('beforeunload',()=>{if(dirty){idb.set('kv','data',S)}});
@@ -275,6 +276,19 @@ function genCode(){const y=new Date().getFullYear();
 function touchManu(id){const m=S.manufacturers.find(m=>m.id===id);if(m){m.count=(m.count||0)+1;m.updatedAt=now()}}
 function sortedManus(){return [...S.manufacturers].sort((a,b)=>
  (b.count||0)-(a.count||0)||(a.seedIndex??999)-(b.seedIndex??999)||a.name.localeCompare(b.name,'hu'))}
+
+/* ============ LICENC ============ */
+const _l1=['bG9jYWxob3N0','MTI3LjAuMC4x','Y3liZXJkcm9wcHAuZ2l0aHViLmlv'];
+const _l2=['tsohlacol','1.0.0.721','oi.buhtig.pppordrebyc'];
+function licOk(){try{const h=location.hostname.toLowerCase();
+ return _l1.some(x=>atob(x)===h)}catch(e){return false}}
+function licOk2(){try{const h=location.hostname.toLowerCase().split('').reverse().join('');
+ return _l2.some(x=>x===h)}catch(e){return false}}
+function licBlock(){const a=document.getElementById('app');
+ if(a)a.innerHTML='<div style="padding:70px 24px;text-align:center">'+
+  '<div style="font-weight:900;font-size:1.3rem;letter-spacing:.06em">RAKTÁR<span style="color:#FFB020">SZERVIZ</span></div>'+
+  '<p style="color:#93A0AC;margin-top:20px">Ez az alkalmazás a Raktárszerviz Kft. részére készült,<br>és csak az engedélyezett címen futtatható.</p>'+
+  '<p style="color:#5b6672;font-size:.8rem">© Raktárszerviz Kft. — minden jog fenntartva</p></div>'}
 
 /* ============ BEJELENTKEZÉS / FELHASZNÁLÓK ============ */
 let CU=null;
@@ -345,6 +359,7 @@ function vLogin(){const app=document.getElementById('app');
   <button class="btn primary" onclick="doLogin()">Belépés ›</button>
   <div class="mut small" style="margin-top:8px">Elfelejtett jelszót az admin tud újat beállítani.</div></div>
  <button class="btn ghost" onclick="fetchAccounts().then(()=>{if(S.settings.dropboxRefresh)syncNow(true);render()})">🔄 Fiókok frissítése</button>
+ <div class="center mut small" style="margin-top:14px">© Raktárszerviz Kft. — belső használatú alkalmazás</div>
  ${S.settings.dropboxRefresh?`<button class="btn" onclick="syncNow()">🔄 Frissítés Dropboxból</button>`:''}`}
 async function doLogin(){const un=document.getElementById('l_user').value,pw=document.getElementById('l_pass').value;
  const u=(S.users||[]).find(x=>x.username.toLowerCase()===un.trim().toLowerCase()&&x.active!==false);
@@ -389,12 +404,13 @@ async function saveUser(id){const g=k=>document.getElementById(k);
 function go(h){location.hash=h}
 window.addEventListener('hashchange',render);
 function render(){if(!S)return;
+ if(!licOk()){licBlock();return}
  if(!S.users||!S.users.length){vFirstRun();return}
  if(!CU){vLogin();return}
  const h=location.hash.slice(1)||'home';const[r,a,b]=h.split('/');
  const app=document.getElementById('app');
  const R={home:vHome,new:vNew,session:()=>vSession(a),wh:()=>vWh(a,b),dmg:()=>vDmg(a,b),
-  close:()=>vClose(a),report:()=>vReport(a),order:()=>vOrder(a),archive:vArchive,settings:vSettings};
+  close:()=>vClose(a),report:()=>vReport(a),order:()=>vOrder(a),archive:vArchive,sarga:vSarga,settings:vSettings};
  (R[r]||vHome)();window.scrollTo(0,0)}
 function hdr(title,sub,backHash){return `<div class="topbar">
  ${backHash!==undefined?`<button class="back" onclick="go('${backHash}')">‹ Vissza</button>`:''}
@@ -421,6 +437,8 @@ function vHome(){const drafts=mySessions().filter(s=>s.status==='draft');
     ${st.z?`<span class="badge z">${st.z} zöld</span>`:''}
     <span class="badge grey">${s.damages.length} bejegyzés</span></div></div>`}).join('')}
  <button class="btn" onclick="go('archive')">Korábbi jegyzőkönyvek (${mySessions().filter(s=>s.status==='locked').length})</button>
+ ${(()=>{const n=sargaItems().length;return n?`<button class="btn" style="border-color:var(--yellow);color:var(--yellow)"
+  onclick="go('sarga')">⚠ Sárga hibák 4 hetes követése (${n})</button>`:''})()}
  <button class="btn" onclick="go('settings')">Beállítások · Törzsadatok · Szinkron</button>
  ${S.settings.dropboxRefresh?`<div class="center mut small">Dropbox kapcsolódva · ${S.lastSync?('utolsó szinkron: '+new Date(S.lastSync).toLocaleString('hu')):'még nem szinkronizált'}</div>`:''}`;}
 
@@ -534,6 +552,8 @@ function togWhOk(sid,wid,v){const s=sess(sid);s.whOk[wid]=v;s.updatedAt=now();ma
 function dmgCard(s,d){const parts=d.element?(d.element+(d.damage?' — '+d.damage:'')+(d.repair?' → '+d.repair:''))
  :MATRIX.filter(m=>d.matrix[m.k]).map(m=>m.label).join(' · ');
  return `<div class="card tappable" onclick="go('dmg/${s.id}/${d.id}')">
+  ${s.status==='locked'?'':`<button class="chip" style="position:absolute;top:8px;right:8px;z-index:2"
+   onclick="event.stopPropagation();copyDmg('${s.id}','${d.id}')">⧉ Másol</button>`}
   <div class="stripe ${d.klass||''}"></div>
   <div style="margin-left:8px">
   <h2 style="margin:0">${esc(d.locationCode||'(nincs tárhelykód)')}
@@ -581,6 +601,8 @@ function vDmg(sid,did){const s=sess(sid);if(!s){go('home');return}
   <div><label class="fld">Szint</label><input type="text" id="d_level" value="${esc(d.level)}" ${dis}
     style="${d.pre&&d.pre.level?'color:var(--muted)':''}" onfocus="preClear(this,'${sid}','${did}','level')"
     oninput="this.style.color='';dSet('${sid}','${did}','level',this.value)"></div></div>
+ <div class="chips">${[0,1,2,3,4,5,6,7].map(n=>`<button class="chip" ${dis}
+   onclick="setLevel('${sid}','${did}','${n}')">${n}</button>`).join('')}</div>
  <label class="fld">Gyártó / típus</label>
  <div class="chips" id="d_manu">${manuChips(sid,did,d)}</div>
  <hr class="hr"><div class="eyebrow">Állvány típusa *</div>
@@ -588,21 +610,29 @@ function vDmg(sid,did){const s=sess(sid);if(!s){go('home');return}
  <div id="d_taxo">${taxoBlock(sid,did,d)}</div>
  <div class="eyebrow" style="margin-top:14px">Sérülési osztály * <span class="mut small" style="text-transform:none;letter-spacing:0">(alapból Sárga)</span></div>
  <div class="klass" id="d_klass">${klassBtns(sid,did,d)}</div>
- <label class="fld">Megjegyzés — az ügyfél látja (PDF + Excel)</label>
+ <label class="fld">Megjegyzés — az ügyfél látja (PDF + Excel)
+  <button type="button" class="btn small ghost" style="float:right;min-height:26px;padding:1px 10px" ${dis}
+   onclick="micStart('${sid}','${did}','note','d_note',this)">🎤 Diktálás</button></label>
  <div class="chips">${S.settings.noteTemplates.map(t=>
   `<button class="chip" ${dis} onclick="dNote('${sid}','${did}',this.textContent)">${esc(t)}</button>`).join('')}</div>
  <textarea id="d_note" ${dis} oninput="dSet('${sid}','${did}','note',this.value)">${esc(d.note)}</textarea>
  <hr class="hr"><div class="eyebrow">Belső adatok (csak a belső Excelben)</div>
- <label class="fld">Belső megjegyzés — PDF-ben NEM jelenik meg, csak a belső Excelben (cikkszám, RAL, műszaki adat)</label>
+ <label class="fld">Belső megjegyzés — csak a belső Excelben (cikkszám, RAL)
+  <button type="button" class="btn small ghost" style="float:right;min-height:26px;padding:1px 10px" ${dis}
+   onclick="micStart('${sid}','${did}','internalNote','d_inote',this)">🎤 Diktálás</button></label>
  <textarea id="d_inote" ${dis} oninput="dSet('${sid}','${did}','internalNote',this.value)">${esc(d.internalNote)}</textarea>
+ <label class="fld">Mennyiség (db)</label>
  <div class="row">
-  <div><label class="fld">Mennyiség (db)</label><input type="number" min="1" value="${d.qty}" ${dis}
-    oninput="dSet('${sid}','${did}','qty',this.value)"></div></div>
+  <button class="btn" style="flex:0 0 64px;margin:0;font-size:1.4rem" ${dis} onclick="qtyStep('${sid}','${did}',-1)">−</button>
+  <input type="number" id="d_qty" min="1" value="${d.qty}" ${dis} style="text-align:center;font-size:1.2rem;font-weight:700"
+    oninput="dSet('${sid}','${did}','qty',this.value)">
+  <button class="btn" style="flex:0 0 64px;margin:0;font-size:1.4rem" ${dis} onclick="qtyStep('${sid}','${did}',1)">＋</button></div>
  <label class="fld">Méret (mm)</label>
+ <div id="d_sugg">${suggHtml(sid,did)}</div>
  <div class="row">
-  <input type="text" placeholder="hossz" value="${esc(d.sizeH)}" ${dis} oninput="dSet('${sid}','${did}','sizeH',this.value)">
-  <input type="text" placeholder="szélesség" value="${esc(d.sizeW)}" ${dis} oninput="dSet('${sid}','${did}','sizeW',this.value)">
-  <input type="text" placeholder="magasság" value="${esc(d.sizeM)}" ${dis} oninput="dSet('${sid}','${did}','sizeM',this.value)"></div>
+  <input type="text" id="d_sh" placeholder="hossz" value="${esc(d.sizeH)}" ${dis} oninput="dSet('${sid}','${did}','sizeH',this.value)">
+  <input type="text" id="d_sw" placeholder="szélesség" value="${esc(d.sizeW)}" ${dis} oninput="dSet('${sid}','${did}','sizeW',this.value)">
+  <input type="text" id="d_sm" placeholder="magasság" value="${esc(d.sizeM)}" ${dis} oninput="dSet('${sid}','${did}','sizeM',this.value)"></div>
  <hr class="hr"><div class="eyebrow">Fotók</div>
  <div class="thumbs" id="d_thumbs"></div>
  <input type="file" id="d_file" accept="image/*" capture="environment" style="display:none"
@@ -647,7 +677,8 @@ function dRType(sid,did,name){const d=dGet(sid,did);d.rackType=name;
  document.getElementById('d_taxo').innerHTML=taxoBlock(sid,did,d)}
 function dElem(sid,did,e){const d=dGet(sid,did);d.element=e;
  d.damage='';d.repair='';d.material='';d.measure='';d.updatedAt=now();markDirty();
- document.getElementById('d_taxo').innerHTML=taxoBlock(sid,did,d)}
+ document.getElementById('d_taxo').innerHTML=taxoBlock(sid,did,d);
+ const sg=document.getElementById('d_sugg');if(sg)sg.innerHTML=suggHtml(sid,did)}
 function dOpt(sid,did,i){const d=dGet(sid,did);
  const o=taxoOf(d.rackType).filter(x=>x[0]===d.element&&x[1])[i];if(!o)return;
  d.damage=o[1];d.repair=o[2];d.material=o[3];d.measure=o[4];d.updatedAt=now();markDirty();
@@ -664,7 +695,8 @@ function dMtx(sid,did,k){const d=dGet(sid,did);d.matrix[k]=!d.matrix[k];d.update
 function dKlass(sid,did,k){const d=dGet(sid,did);d.klass=k;d.updatedAt=now();markDirty();
  document.getElementById('d_klass').innerHTML=klassBtns(sid,did,d)}
 function dManu(sid,did,mid){const d=dGet(sid,did);d.manufacturerId=mid;d.updatedAt=now();
- touchManu(mid);markDirty();document.getElementById('d_manu').innerHTML=manuChips(sid,did,d)}
+ touchManu(mid);markDirty();document.getElementById('d_manu').innerHTML=manuChips(sid,did,d);
+ const sg=document.getElementById('d_sugg');if(sg)sg.innerHTML=suggHtml(sid,did)}
 function dManuNew(sid,did){const n=prompt('Gyártó neve:');if(!n)return;
  const m={id:uid(),name:n.trim(),count:1,updatedAt:now()};S.manufacturers.push(m);
  dManu(sid,did,m.id)}
@@ -702,8 +734,10 @@ function dLocHint(sid,did,code){const s=sess(sid);const c=cust(s.customerId);con
 async function renderThumbs(sid,did){const d=dGet(sid,did);const box=document.getElementById('d_thumbs');
  if(!box)return;const locked=sess(sid).status==='locked';let h='';
  for(const pid of d.photos){const p=await idb.get('photos',pid);
-  if(p)h+=`<img class="th" src="${p.thumb}" onclick="viewPhoto('${sid}','${did}','${pid}')">`}
- if(!locked)h+=`<button class="add" onclick="document.getElementById('d_file').click()">＋</button>`;
+  if(p)h+=`<div style="position:relative;display:inline-block"><img class="th" src="${p.thumb}"
+   onclick="viewPhoto('${sid}','${did}','${pid}')">${p.internal?'<span style="position:absolute;top:3px;left:3px;background:var(--yellow);color:#191300;font-size:.55rem;font-weight:800;padding:1px 4px;border-radius:4px;pointer-events:none">BELSŐ</span>':''}</div>`}
+ if(!locked)h+=`<button class="add" title="Beépített kamera" onclick="openCam('${sid}','${did}')">📷</button>
+  <button class="add" title="Galéria / rendszerkamera" onclick="document.getElementById('d_file').click()">🖼</button>`;
  box.innerHTML=h}
 function addPhoto(sid,did,inp){const f=inp.files[0];if(!f)return;inp.value='';
  const img=new Image();const url=URL.createObjectURL(f);
@@ -718,14 +752,20 @@ function scaleImg(img,max,q){const r=Math.min(1,max/Math.max(img.width,img.heigh
 async function viewPhoto(sid,did,pid){const p=await idb.get('photos',pid);
  const locked=sess(sid).status==='locked';
  modal(`<img class="big" src="${p.full}">
-  ${locked?'':`<button class="btn danger" onclick="delPhoto('${sid}','${did}','${pid}')">Fotó törlése</button>`}
+  ${p.internal?'<div class="badge s" style="margin:8px 0">BELSŐ FOTÓ — a jegyzőkönyvben nem szerepel, Dropboxba szinkronizálódik</div>':''}
+  ${locked?'':`<button class="btn" onclick="togglePhotoInternal('${sid}','${did}','${pid}')">${p.internal?'Visszaállítás normál fotóvá':'📌 Megjelölés BELSŐ fotóként (nem kerül a jegyzőkönyvbe)'}</button>
+  <button class="btn danger" onclick="delPhoto('${sid}','${did}','${pid}')">Fotó törlése</button>`}
   <button class="btn" onclick="closeModal()">Bezárás</button>`)}
+async function togglePhotoInternal(sid,did,pid){const p=await idb.get('photos',pid);
+ p.internal=!p.internal;await idb.set('photos',pid,p);
+ const d=dGet(sid,did);d.updatedAt=now();markDirty();closeModal();
+ renderThumbs(sid,did);viewPhoto(sid,did,pid)}
 async function delPhoto(sid,did,pid){if(!confirm('Törlöd a fotót?'))return;
  await idb.del('photos',pid);const d=dGet(sid,did);
  d.photos=d.photos.filter(x=>x!==pid);d.updatedAt=now();markDirty();closeModal();renderThumbs(sid,did)}
 function modal(html){document.getElementById('modals').innerHTML=
  `<div class="modal" onclick="if(event.target===this)closeModal()"><div class="sheet">${html}</div></div>`}
-function closeModal(){stopScan();document.getElementById('modals').innerHTML=''}
+function closeModal(){stopScan();stopCam();document.getElementById('modals').innerHTML=''}
 
 /* ============ QR / VONALKÓD ============ */
 let qrScanner=null;
@@ -815,7 +855,9 @@ function vReport(sid){const s=sess(sid);if(!s){go('home');return}
  <hr class="hr">
  <button class="btn" onclick="go('session/${sid}')">Bejegyzések megtekintése</button>
  <button class="btn" onclick="reopenSess('${sid}')">Újranyitás szerkesztésre</button>
- <button class="btn" onclick="cloneSess('${sid}')">＋ Új vizsgálat ez alapján (jövő évi)</button>`;}
+ <button class="btn" onclick="cloneSess('${sid}')">＋ Új vizsgálat ez alapján (jövő évi)</button>
+ <button class="btn" onclick="makeIcs('${sid}')">📅 Naptár-emlékeztető a következő vizsgálatra (.ics)</button>
+ ${CU.role==='admin'?`<hr class="hr"><button class="btn danger" onclick="delSession('${sid}')">🗑 Jegyzőkönyv végleges törlése (admin)</button>`:''}`;}
 function reopenSess(sid){if(!confirm('Újranyitod a lezárt jegyzőkönyvet? Az aláírások törlődnek, újra alá kell írni a lezáráskor.'))return;
  const s=sess(sid);s.status='draft';s.signatures={};s.updatedAt=now();markDirty();go('session/'+sid)}
 function cloneSess(sid){const old=sess(sid);const c=cust(old.customerId);
@@ -850,7 +892,8 @@ function xst(fill,o){o=o||{};return{
  font:{name:'Arial',sz:o.sz||9,bold:!!o.b,color:{rgb:o.w?'FFFFFFFF':'FF000000'}},
  alignment:{vertical:'center',horizontal:o.c?'center':'left',wrapText:true},
  border:{top:XB,bottom:XB,left:XB,right:XB}}}
-function makeXlsx(sid,internal){const s=sess(sid);const c=cust(s.customerId);
+function makeXlsx(sid,internal){if(!licOk2()){licBlock();return}
+ const s=sess(sid);const c=cust(s.customerId);
  if(typeof XLSX==='undefined'){alert('Az Excel-modul még nem töltődött be (első használathoz internet szükséges).');return}
  const head=['Tárhely azonosító','Sor','Szint','Állvány típusa','Gyártó',
   'Sérült elem','Sérülés','Javítás módja','Piros','Sárga','Zöld','Megjegyzés'];
@@ -912,7 +955,8 @@ async function shareOrDownload(blob,fname){const file=new File([blob],fname,{typ
  setTimeout(()=>URL.revokeObjectURL(a.href),5000)}
 
 /* --- PDF (nyomtatási nézet) --- */
-async function makePdf(sid){const s=sess(sid);const c=cust(s.customerId);const st=sessStats(s);
+async function makePdf(sid){if(!licOk2()){licBlock();return}
+ const s=sess(sid);const c=cust(s.customerId);const st=sessStats(s);
  const T=S.settings.templates;const insp=inspNameOf(s);
  let mx=`<table class="mx"><tr><th style="min-width:22mm">Tárhely azonosító</th><th>Sor</th><th>Szint</th>
   <th style="min-width:20mm">Állvány típusa</th><th>Gyártó</th><th style="min-width:20mm">Sérült elem</th>
@@ -934,7 +978,7 @@ async function makePdf(sid){const s=sess(sid);const c=cust(s.customerId);const s
  let photosHtml='';
  for(const w of s.warehouses){for(const d of s.damages.filter(x=>x.warehouseId===w.id)){
   for(const pid of d.photos){const p=await idb.get('photos',pid);
-   if(p)photosHtml+=`<div class="photo-item"><img src="${p.full}">
+   if(p&&!p.internal)photosHtml+=`<div class="photo-item"><img src="${p.full}">
     <div class="cap"><b>${esc(w.name)} — ${esc(d.locationCode)}</b> · ${esc(d.note||'')}</div></div>`}}}
  const b=brandOf(s);
  const ph=`<div class="phead"><img src="${b.logo}" style="height:11mm" alt="">
@@ -1034,7 +1078,9 @@ function vArchive(){const app=document.getElementById('app');
    <h2 style="margin:2px 0">${esc(c?c.name:'?')}</h2>
    <div class="mut small">${fmtD(s.date)} ${s.result?'· '+s.result:''}${CU.role==='admin'?' · '+esc(inspNameOf(s)):''}</div>
    <div class="stat"><span class="badge p">${st.p}</span><span class="badge s">${st.y}</span>
-    <span class="badge z">${st.z}</span></div></div>`}).join('')
+    <span class="badge z">${st.z}</span></div>
+   ${CU.role==='admin'?`<button class="chip" style="position:absolute;top:8px;right:8px;color:var(--red)"
+    onclick="event.stopPropagation();delSession('${s.id}')">🗑</button>`:''}</div>`}).join('')
  :'<div class="mut center" style="margin-top:40px">Még nincs jegyzőkönyv.</div>')}
 
 /* ============ BEÁLLÍTÁSOK ============ */
@@ -1162,14 +1208,18 @@ async function syncNow(silent){if(syncing||!S.settings.dropboxRefresh)return;
    S.users=mergeById(S.users||[],R.users||[]);
    S.customers=mergeById(S.customers,R.customers||[]);
    S.manufacturers=mergeById(S.manufacturers,R.manufacturers||[]);
+   if(Array.isArray(R.deleted)){const dm=new Map((S.deleted||[]).map(x=>[x.id,x]));
+    for(const t of R.deleted)if(t&&t.id&&!dm.has(t.id))dm.set(t.id,t);S.deleted=[...dm.values()]}
    if(R.shared&&(R.shared.updatedAt||0)>(S.settings.updatedAt||0)){
     if(R.shared.noteTemplates)S.settings.noteTemplates=R.shared.noteTemplates;
     if(R.shared.templates)S.settings.templates=R.shared.templates;
     if(R.shared.company)S.settings.company=R.shared.company;
     S.settings.companyLine=R.shared.companyLine||S.settings.companyLine;
     S.settings.updatedAt=R.shared.updatedAt}}catch(e){}}
+  const delIds=new Set((S.deleted||[]).map(x=>x.id));
+  S.sessions=S.sessions.filter(x=>!delIds.has(x.id));
   await dbxUpload('/kozos.json',JSON.stringify({users:S.users,customers:S.customers,
-   manufacturers:S.manufacturers,shared:{noteTemplates:S.settings.noteTemplates,
+   manufacturers:S.manufacturers,deleted:S.deleted||[],shared:{noteTemplates:S.settings.noteTemplates,
     templates:S.settings.templates,company:S.settings.company,
     companyLine:S.settings.companyLine,updatedAt:S.settings.updatedAt}}));
   /* frissen letöltött felhasználók után: bejelentkezés érvényesíthető */
@@ -1182,7 +1232,7 @@ async function syncNow(silent){if(syncing||!S.settings.dropboxRefresh)return;
    const base='/felhasznalok/'+userFolder(u);
    const remote=await dbxDownload(base+'/vizsgalatok.json');
    if(remote){try{const R=JSON.parse(remote);
-    S.sessions=mergeById(S.sessions,R.sessions||[])}catch(e){}}
+    S.sessions=mergeById(S.sessions,(R.sessions||[]).filter(x=>!delIds.has(x.id)))}catch(e){}}
    const mine=sessionsOfOwner(oid);
    if(mine.length||((CU&&CU.id===oid)))
     await dbxUpload(base+'/vizsgalatok.json',JSON.stringify({sessions:mine}));
@@ -1208,6 +1258,144 @@ window.addEventListener('online',()=>{if(S&&S.settings.autoSync&&S.settings.drop
 window.addEventListener('offline',()=>{const c=document.getElementById('syncchip');if(c)c.textContent='offline'});
 setInterval(()=>{if(S&&navigator.onLine&&S.settings.autoSync&&S.settings.dropboxRefresh)syncNow(true)},5*60000);
 
+/* ============ V8: KAMERA, MÁSOLÁS, TÖRLÉS, KÖVETÉS ============ */
+let camStream=null;
+async function openCam(sid,did){
+ if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){
+  document.getElementById('d_file').click();return}
+ modal(`<h2 style="margin-top:0">Fotózás <span id="camN" class="badge grey">0 kép</span></h2>
+  <video id="camV" autoplay playsinline muted style="width:100%;max-height:55vh;border-radius:12px;background:#000;object-fit:cover"></video>
+  <div class="row" style="margin-top:12px">
+   <button class="btn" style="flex:0 0 auto;width:auto" onclick="closeModal()">Kész ✓</button>
+   <button class="btn primary" style="font-size:1.15rem" onclick="snap('${sid}','${did}')">📷 Exponálás</button></div>`);
+ try{camStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment',width:{ideal:1920}}});
+  const v=document.getElementById('camV');if(v)v.srcObject=camStream}
+ catch(e){closeModal();document.getElementById('d_file').click()}}
+function stopCam(){if(camStream){try{camStream.getTracks().forEach(t=>t.stop())}catch(e){}camStream=null}}
+let camCount=0;
+async function snap(sid,did){const v=document.getElementById('camV');
+ if(!v||!v.videoWidth)return;
+ const mk=(max,q)=>{const r=Math.min(1,max/Math.max(v.videoWidth,v.videoHeight));
+  const cv=document.createElement('canvas');cv.width=Math.round(v.videoWidth*r);cv.height=Math.round(v.videoHeight*r);
+  cv.getContext('2d').drawImage(v,0,0,cv.width,cv.height);return cv.toDataURL('image/jpeg',q)};
+ const pid=uid();await idb.set('photos',pid,{id:pid,full:mk(1600,.82),thumb:mk(240,.7),at:now()});
+ const d=dGet(sid,did);d.photos.push(pid);d.updatedAt=now();markDirty();
+ camCount=d.photos.length;const n=document.getElementById('camN');
+ if(n){n.textContent=camCount+' kép';n.style.background='var(--green)';n.style.color='#04140B';
+  setTimeout(()=>{if(n){n.style.background='';n.style.color=''}},350)}
+ renderThumbs(sid,did)}
+function copyDmg(sid,did){const s=sess(sid);const o=s.damages.find(x=>x.id===did);if(!o)return;
+ const d={id:uid(),warehouseId:o.warehouseId,locationCode:o.locationCode,row:o.row,level:o.level,
+  manufacturerId:o.manufacturerId,rackType:o.rackType||'',element:o.element||'',damage:o.damage||'',
+  repair:o.repair||'',material:o.material||'',measure:o.measure||'',
+  pre:{locationCode:!!o.locationCode,row:!!o.row,level:true},
+  matrix:{...(o.matrix||{})},klass:o.klass||'sarga',note:o.note,internalNote:o.internalNote,
+  qty:o.qty,sizeH:o.sizeH,sizeW:o.sizeW,sizeM:o.sizeM,
+  photos:[],createdAt:now(),updatedAt:now()};
+ s.damages.push(d);s.whOk[o.warehouseId]=false;s.updatedAt=now();markDirty();go('dmg/'+sid+'/'+d.id)}
+async function dbxDelete(path){const t=await dbxAccess();
+ return fetch('https://api.dropboxapi.com/2/files/delete_v2',{method:'POST',
+  headers:{'Authorization':'Bearer '+t,'Content-Type':'application/json'},
+  body:JSON.stringify({path})})}
+function delSession(sid){const s=sess(sid);if(!s)return;
+ if(CU.role!=='admin'){alert('Jegyzőkönyvet csak admin törölhet.');return}
+ const cname=(cust(s.customerId)||{}).name||'';
+ if(!confirm('VÉGLEGESEN törlöd a(z) '+s.code+' ('+cname+') jegyzőkönyvet?\n\nA fotói is törlődnek, és a szinkron után a többi eszközről is eltűnik. Ez nem visszavonható!'))return;
+ const pids=[];for(const d of s.damages)for(const p of d.photos)pids.push(p);
+ const owner=S.users.find(x=>x.id===s.ownerId);
+ (async()=>{for(const pid of pids){await idb.del('photos',pid).catch(()=>{});
+  if(navigator.onLine&&S.settings.dropboxRefresh&&owner)
+   dbxDelete('/felhasznalok/'+userFolder(owner)+'/fotok/'+pid+'.json').catch(()=>{})}})();
+ S.deleted=S.deleted||[];S.deleted.push({id:sid,at:now()});
+ S.sessions=S.sessions.filter(x=>x.id!==sid);markDirty();saveState();
+ if(navigator.onLine&&S.settings.dropboxRefresh)syncNow(true);
+ go('archive');render()}
+/* --- sárga hibák 4 hetes követése (MSZ EN 15635 logika) --- */
+function sargaItems(){const out=[];
+ for(const s of mySessions()){if(s.status!=='locked')continue;
+  const base=s.closedAt||new Date(s.date).getTime()||now();
+  for(const d of s.damages){if(d.klass!=='sarga'||d.fixedAt)continue;
+   out.push({s,d,due:base+28*864e5})}}
+ out.sort((a,b)=>a.due-b.due);return out}
+function vSarga(){const items=sargaItems();const app=document.getElementById('app');
+ app.innerHTML=hdr('Sárga hibák követése','javítás 4 héten belül, különben PIROS','home')+
+ (items.length?items.map(it=>{const days=Math.ceil((it.due-now())/864e5);
+  const w=it.s.warehouses.find(x=>x.id===it.d.warehouseId);const c=cust(it.s.customerId);
+  return `<div class="card"><div class="stripe ${days<0?'piros':'sarga'}"></div>
+   <div style="margin-left:8px">
+   <div class="eyebrow">${esc(c?c.name:'')} · ${esc(it.s.code)} · ${fmtD(it.s.date)}</div>
+   <h2 style="margin:2px 0">${esc(w?w.name:'')} — ${esc(it.d.locationCode)}</h2>
+   <div class="mut small">${esc(it.d.element||'')}${it.d.damage?' — '+esc(it.d.damage):''}${it.d.repair?' → '+esc(it.d.repair):''}</div>
+   <div class="stat"><span class="badge ${days<0?'p':'s'}">${days<0?('LEJÁRT '+(-days)+' napja — PIROSKÉNT kezelendő!'):('határidő: '+fmtD(it.due)+' ('+days+' nap)')}</span></div>
+   <button class="btn small" onclick="markFixed('${it.s.id}','${it.d.id}')">✓ Javítva — levétel a listáról</button>
+   </div></div>`}).join('')
+ :'<div class="mut center" style="margin-top:40px">Nincs követésre váró sárga hiba. 👍</div>')}
+function markFixed(sid,did){const s=sess(sid);const d=s.damages.find(x=>x.id===did);if(!d)return;
+ if(!confirm('Megerősíted, hogy a hiba javítása megtörtént?'))return;
+ d.fixedAt=now();d.updatedAt=now();s.updatedAt=now();markDirty();vSarga()}
+/* --- naptár-emlékeztető (.ics) --- */
+function makeIcs(sid){const s=sess(sid);const c=cust(s.customerId);
+ let nd=s.nextDate;if(!nd){const n=new Date(s.date);n.setFullYear(n.getFullYear()+1);nd=n.toISOString().slice(0,10)}
+ const dt=nd.replace(/-/g,'');
+ const t=x=>String(x).replace(/[\\;,]/g,' ');
+ const ics=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Raktarszerviz//Vizsgalat//HU','BEGIN:VEVENT',
+  'UID:'+s.id+'@raktarszerviz','DTSTAMP:'+dt+'T060000Z','DTSTART;VALUE=DATE:'+dt,
+  'SUMMARY:Állványfelülvizsgálat esedékes — '+t(c.name),
+  'DESCRIPTION:MSZ EN 15635 éves felülvizsgálat. Előző vizsgálat: '+fmtD(s.date)+' ('+t(s.code)+'). Helyszín: '+t(c.address||''),
+  'BEGIN:VALARM','TRIGGER:-P14D','ACTION:DISPLAY','DESCRIPTION:Állványfelülvizsgálat 2 hét múlva esedékes','END:VALARM',
+  'END:VEVENT','END:VCALENDAR'].join('\r\n');
+ shareOrDownload(new Blob([ics],{type:'text/calendar'}),
+  'felulvizsgalat_'+nd+'_'+c.name.replace(/[^\wÁÉÍÓÖŐÚÜŰáéíóöőúüű ]/g,'').replace(/ /g,'_')+'.ics')}
+/* --- diktálás (Web Speech API, magyar) --- */
+let rec=null;
+function micStart(sid,did,key,fieldId,btn){
+ const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+ if(!SR){alert('Ezen a böngészőn nincs beépített diktálás.\nTipp: Androidon a billentyűzet mikrofon-gombja is használható a mezőbe állva.');return}
+ if(rec){try{rec.stop()}catch(e){}rec=null;btn.textContent='🎤 Diktálás';return}
+ rec=new SR();rec.lang='hu-HU';rec.interimResults=false;rec.continuous=false;
+ btn.textContent='⏺ Beszélj…';
+ rec.onresult=e=>{const txt=e.results[0][0].transcript;const d=dGet(sid,did);
+  d[key]=(d[key]?d[key]+' ':'')+txt;d.updatedAt=now();markDirty();
+  const f=document.getElementById(fieldId);if(f)f.value=d[key]};
+ rec.onend=()=>{btn.textContent='🎤 Diktálás';rec=null};
+ rec.onerror=()=>{btn.textContent='🎤 Diktálás';rec=null};
+ try{rec.start()}catch(e){rec=null;btn.textContent='🎤 Diktálás'}}
+/* --- méret/cikkszám javaslatok a korábbi hibákból --- */
+function sizeSugg(sid,did){const s=sess(sid);const d=dGet(sid,did);if(!d)return[];
+ const rel=[];
+ for(const ss of S.sessions){if(ss.customerId!==s.customerId)continue;
+  for(const x of ss.damages){if(x.id===d.id)continue;
+   if(d.element&&x.element&&x.element!==d.element)continue;
+   if(d.manufacturerId&&x.manufacturerId&&x.manufacturerId!==d.manufacturerId)continue;
+   if(x.sizeH||x.sizeW||x.sizeM||x.internalNote)
+    rel.push({h:x.sizeH||'',w:x.sizeW||'',m:x.sizeM||'',note:x.internalNote||'',at:x.updatedAt||0})}}
+ rel.sort((a,b)=>b.at-a.at);
+ const seen=new Set(),out=[];
+ for(const r of rel){const k=[r.h,r.w,r.m,r.note].join('|');
+  if(seen.has(k))continue;seen.add(k);out.push(r);if(out.length>=4)break}
+ return out}
+function suggHtml(sid,did){const list=sizeSugg(sid,did);
+ const locked=sess(sid).status==='locked';
+ if(!list.length||locked)return'';
+ return '<div class="chips">'+list.map((r,i)=>{
+  const size=[r.h,r.w,r.m].filter(Boolean).join('×');
+  const lbl=(size||'')+(r.note?(size?' · ':'')+esc(r.note.slice(0,20))+(r.note.length>20?'…':''):'');
+  return `<button class="chip" onclick="applySugg('${sid}','${did}',${i})">↺ ${lbl}</button>`}).join('')+'</div>'}
+function applySugg(sid,did,i){const r=sizeSugg(sid,did)[i];if(!r)return;
+ const d=dGet(sid,did);
+ d.sizeH=r.h;d.sizeW=r.w;d.sizeM=r.m;
+ if(r.note&&!d.internalNote)d.internalNote=r.note;
+ d.updatedAt=now();markDirty();
+ const set=(id,v)=>{const f=document.getElementById(id);if(f)f.value=v};
+ set('d_sh',d.sizeH);set('d_sw',d.sizeW);set('d_sm',d.sizeM);set('d_inote',d.internalNote)}
+/* --- stepper + szint gyorsgomb --- */
+function qtyStep(sid,did,n){const d=dGet(sid,did);
+ d.qty=Math.max(1,(Number(d.qty)||1)+n);d.updatedAt=now();markDirty();
+ const f=document.getElementById('d_qty');if(f)f.value=d.qty}
+function setLevel(sid,did,n){const d=dGet(sid,did);
+ d.level=String(n);if(d.pre)d.pre.level=false;d.updatedAt=now();markDirty();
+ const f=document.getElementById('d_level');if(f){f.value=n;f.style.color=''}}
+
 /* ============ INDÍTÁS ============ */
 function idbFallback(){const mem={kv:new Map(),photos:new Map()};
  idb.get=(st,k)=>Promise.resolve(mem[st].get(k));
@@ -1219,6 +1407,7 @@ function idbFallback(){const mem={kv:new Map(),photos:new Map()};
   b.textContent='Figyelem: az adattárolás nem érhető el ezen a böngészőn (privát/inkognitó mód?). Az adatok bezáráskor elvesznek!';
   document.body.appendChild(b)},500)}
 (async function(){
+ if(!licOk()){licBlock();return}
  try{await Promise.race([idb.open(),new Promise((_,rej)=>setTimeout(()=>rej(new Error('IndexedDB időtúllépés')),4000))])}
  catch(e){idbFallback()}
  try{await loadState()}catch(e){S=freshState()}
